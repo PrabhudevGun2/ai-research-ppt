@@ -1,0 +1,46 @@
+services:
+  # --- Backend (FastAPI) ---
+  - type: web
+    name: ai-ppt-backend
+    runtime: docker
+    dockerfilePath: ./docker/Dockerfile.backend
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: OPENROUTER_API_KEY
+        value: ""
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: LLM_MODEL
+        value: google/gemini-2.0-flash-001
+      - key: REDIS_URL
+        fromService:
+          name: ai-ppt-redis
+          type: redis
+          property: connectionString
+      - key: OUTPUT_DIR
+        value: /app/outputs
+      - key: LOG_LEVEL
+        value: INFO
+    healthCheckPath: /api/v1/health
+
+  # --- Frontend (Streamlit) ---
+  - type: web
+    name: ai-ppt-frontend
+    runtime: docker
+    dockerfilePath: ./docker/Dockerfile.frontend
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          name: ai-ppt-backend
+          type: web
+          property: url
+
+  # --- Redis ---
+  - type: redis
+    name: ai-ppt-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []  # Only internal access

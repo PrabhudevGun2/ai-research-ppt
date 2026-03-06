@@ -1,0 +1,23 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir \
+    streamlit>=1.36.0 \
+    requests>=2.32.0
+
+COPY frontend/ ./frontend/
+
+# Non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Render injects PORT env var; default to 8501 for local Docker
+ENV PORT=8501
+EXPOSE ${PORT}
+
+CMD streamlit run frontend/app.py \
+    --server.port=${PORT} \
+    --server.address=0.0.0.0 \
+    --server.headless=true

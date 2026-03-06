@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: ai-research-ppt
+data:
+  BACKEND_URL: "http://backend:8000"
