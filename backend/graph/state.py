@@ -50,6 +50,7 @@ class SlideContent(TypedDict):
 
 class GeneratedPPT(TypedDict):
     file_path: str
+    doc_path: Optional[str]
     session_id: str
     slide_count: int
     topics_covered: List[str]
