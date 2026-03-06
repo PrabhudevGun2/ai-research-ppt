@@ -398,6 +398,14 @@ def ppt_generation_node(state: ResearchState) -> dict:
     }
 
     logger.info(f"[{session_id}] PPT saved to {file_path} with {len(approved_slides)} slides")
+
+    # Clean up extracted assets (PDFs, images) - they're now embedded in pptx/docx
+    assets_dir = os.path.join(settings.output_dir, session_id, "assets")
+    if os.path.isdir(assets_dir):
+        import shutil
+        shutil.rmtree(assets_dir, ignore_errors=True)
+        logger.info(f"[{session_id}] Cleaned up assets directory")
+
     return {
         "current_stage": Stage.AWAITING_FINAL_REVIEW,
         "generated_ppt": generated_ppt,

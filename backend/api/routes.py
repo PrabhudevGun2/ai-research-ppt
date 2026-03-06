@@ -1,5 +1,8 @@
 import asyncio
+import glob
 import logging
+import os
+import shutil
 import uuid
 from datetime import datetime
 from typing import Any, Optional
@@ -10,12 +13,15 @@ from pydantic import BaseModel
 
 from backend.graph.builder import build_graph, get_checkpointer
 from backend.graph.state import Stage
+from backend.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # In-memory session tracking (stage + interrupt payload)
 _session_registry: dict[str, dict] = {}
+
+MAX_SESSIONS = 5  # Keep at most this many sessions in memory
 
 
 class CreateSessionRequest(BaseModel):
@@ -35,6 +41,60 @@ class ResumeRequest(BaseModel):
 
 def _get_thread_config(session_id: str) -> dict:
     return {"configurable": {"thread_id": session_id}}
+
+
+def _cleanup_old_sessions(keep_session: str = ""):
+    """Remove oldest sessions when we exceed MAX_SESSIONS to free memory."""
+    if len(_session_registry) <= MAX_SESSIONS:
+        return
+
+    # Sort by stage - completed/failed sessions are safe to remove first
+    removable = []
+    for sid, reg in _session_registry.items():
+        if sid == keep_session:
+            continue
+        stage = reg.get("stage", "")
+        if stage in (Stage.COMPLETED, Stage.FAILED):
+            removable.append(sid)
+
+    # If not enough completed/failed, remove oldest sessions
+    if len(_session_registry) - len(removable) > MAX_SESSIONS:
+        for sid in list(_session_registry.keys()):
+            if sid != keep_session and sid not in removable:
+                removable.append(sid)
+
+    for sid in removable:
+        _cleanup_session(sid)
+        if len(_session_registry) <= MAX_SESSIONS:
+            break
+
+
+def _cleanup_session(session_id: str):
+    """Remove a session's data from memory and disk."""
+    logger.info(f"Cleaning up session {session_id}")
+
+    # Remove session assets directory (PDFs, extracted images)
+    session_dir = os.path.join(settings.output_dir, session_id)
+    if os.path.isdir(session_dir):
+        shutil.rmtree(session_dir, ignore_errors=True)
+
+    # Remove generated files
+    for ext in ("*.pptx", "*.docx"):
+        for f in glob.glob(os.path.join(settings.output_dir, f"{session_id}{ext}")):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
+    # Remove from registry
+    _session_registry.pop(session_id, None)
+
+    # Clean up BYOK key
+    try:
+        from backend.llm_client import cleanup_session
+        cleanup_session(session_id)
+    except Exception:
+        pass
 
 
 async def _run_graph(session_id: str, initial_state: dict):
@@ -71,7 +131,17 @@ def _update_session_from_state(session_id: str, state: dict):
     stage = state.get("current_stage", Stage.COMPLETED)
     registry = _session_registry.setdefault(session_id, {})
     registry["stage"] = stage
-    registry["state"] = state
+
+    # Only keep what's needed - drop heavy data after PPT is generated
+    if stage in (Stage.AWAITING_FINAL_REVIEW, Stage.COMPLETED):
+        # Keep only file paths, drop full_text/processed_paper to free memory
+        light_state = {
+            "generated_ppt": state.get("generated_ppt"),
+            "current_stage": stage,
+        }
+        registry["state"] = light_state
+    else:
+        registry["state"] = state
 
     # Capture interrupt payload based on stage
     if stage == Stage.AWAITING_PAPER_SELECTION:
@@ -125,6 +195,8 @@ async def create_session(
 ):
     """Create a new research session and start the pipeline."""
     session_id = str(uuid.uuid4())
+    # Clean up old sessions to keep memory usage low
+    _cleanup_old_sessions(keep_session=session_id)
     # BYOK: store user's API key for this session (in-memory only)
     if request.api_key:
         from backend.llm_client import set_session_api_key
