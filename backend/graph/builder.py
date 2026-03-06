@@ -1,6 +1,6 @@
 import logging
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.redis import RedisSaver
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import interrupt, Command
 
 from backend.graph.state import ResearchState, Stage
@@ -127,8 +127,14 @@ def build_graph(checkpointer=None) -> StateGraph:
 
 
 def get_checkpointer():
-    """Create and return a RedisSaver checkpointer."""
-    ctx = RedisSaver.from_conn_string(settings.redis_url)
-    saver = ctx.__enter__()
-    saver.setup()
-    return saver
+    """Create a checkpointer. Uses Redis if RediSearch is available, else in-memory."""
+    try:
+        from langgraph.checkpoint.redis import RedisSaver
+        ctx = RedisSaver.from_conn_string(settings.redis_url)
+        saver = ctx.__enter__()
+        saver.setup()
+        logger.info("Using Redis checkpointer")
+        return saver
+    except Exception as e:
+        logger.warning(f"Redis checkpointer unavailable ({e}), using in-memory checkpointer")
+        return MemorySaver()
