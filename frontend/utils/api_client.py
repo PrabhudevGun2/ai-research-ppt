@@ -2,7 +2,18 @@ import os
 import requests
 from typing import Optional
 
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+def _build_backend_url() -> str:
+    """Build backend URL from env vars. Supports BACKEND_URL directly or host+port parts."""
+    url = os.environ.get("BACKEND_URL")
+    if url:
+        return url.rstrip("/")
+    host = os.environ.get("BACKEND_INTERNAL_HOST")
+    port = os.environ.get("BACKEND_INTERNAL_PORT")
+    if host and port:
+        return f"http://{host}:{port}"
+    return "http://localhost:8000"
+
+BACKEND_URL = _build_backend_url()
 API_BASE = f"{BACKEND_URL}/api/v1"
 TIMEOUT = 30
 

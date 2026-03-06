@@ -32,11 +32,16 @@ services:
     dockerContext: .
     plan: free
     envVars:
-      - key: BACKEND_URL
+      - key: BACKEND_INTERNAL_HOST
         fromService:
           name: ai-ppt-backend
           type: web
-          property: url
+          property: host
+      - key: BACKEND_INTERNAL_PORT
+        fromService:
+          name: ai-ppt-backend
+          type: web
+          property: port
 
   # --- Redis ---
   - type: redis
