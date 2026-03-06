@@ -73,10 +73,18 @@ def download_doc(session_id: str) -> bytes:
     return resp.content
 
 
-def health_check() -> bool:
-    """Check if the backend is reachable."""
+def health_check(timeout: int = 10) -> bool:
+    """Check if the backend is reachable. Uses longer timeout for cold starts."""
     try:
-        resp = requests.get(f"{API_BASE}/health", timeout=5)
+        resp = requests.get(f"{API_BASE}/health", timeout=timeout)
         return resp.status_code == 200
     except Exception:
         return False
+
+
+def wake_backend(max_attempts: int = 3) -> bool:
+    """Try to wake a sleeping backend (Render free tier cold start ~30s)."""
+    for i in range(max_attempts):
+        if health_check(timeout=45):
+            return True
+    return False

@@ -2,7 +2,7 @@ import time
 import streamlit as st
 
 from utils.session_state import init_session, get_session, set_session, STAGE_TO_PAGE, STAGE_LABELS
-from utils.api_client import get_session_status, health_check
+from utils.api_client import get_session_status, health_check, wake_backend
 
 st.set_page_config(
     page_title="AI Research PPT Generator",
@@ -31,7 +31,14 @@ with st.sidebar:
     if backend_ok:
         st.success("Backend connected")
     else:
-        st.error("Backend unreachable")
+        st.warning("Backend is waking up...")
+        with st.spinner("Waiting for backend (free tier cold start ~30s)..."):
+            backend_ok = wake_backend()
+        if backend_ok:
+            st.success("Backend connected")
+            st.rerun()
+        else:
+            st.error("Backend unreachable. Try refreshing in 30 seconds.")
 
     if st.button("Start New Session", use_container_width=True):
         from utils.session_state import clear_session
