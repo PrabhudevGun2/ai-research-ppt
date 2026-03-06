@@ -126,15 +126,24 @@ def build_graph(checkpointer=None) -> StateGraph:
     return graph.compile(checkpointer=checkpointer)
 
 
+_checkpointer = None
+
+
 def get_checkpointer():
-    """Create a checkpointer. Uses Redis if RediSearch is available, else in-memory."""
+    """Get or create a singleton checkpointer. Uses Redis if RediSearch is available, else in-memory."""
+    global _checkpointer
+    if _checkpointer is not None:
+        return _checkpointer
+
     try:
         from langgraph.checkpoint.redis import RedisSaver
         ctx = RedisSaver.from_conn_string(settings.redis_url)
         saver = ctx.__enter__()
         saver.setup()
         logger.info("Using Redis checkpointer")
-        return saver
+        _checkpointer = saver
     except Exception as e:
         logger.warning(f"Redis checkpointer unavailable ({e}), using in-memory checkpointer")
-        return MemorySaver()
+        _checkpointer = MemorySaver()
+
+    return _checkpointer
