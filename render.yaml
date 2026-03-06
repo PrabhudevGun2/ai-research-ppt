@@ -32,16 +32,8 @@ services:
     dockerContext: .
     plan: free
     envVars:
-      - key: BACKEND_INTERNAL_HOST
-        fromService:
-          name: ai-ppt-backend
-          type: web
-          property: host
-      - key: BACKEND_INTERNAL_PORT
-        fromService:
-          name: ai-ppt-backend
-          type: web
-          property: port
+      - key: BACKEND_URL
+        value: https://ai-ppt-backend-u6fo.onrender.com
 
   # --- Redis ---
   - type: redis
