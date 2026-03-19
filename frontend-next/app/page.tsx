@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Key, Link2, Search, Cpu, Sparkles, ChevronDown, CheckCircle2,
   Loader2, BookOpen, Brain, FileText, Presentation, ArrowRight,
-  GraduationCap, Briefcase, FlaskConical, Code2, Zap, Lock,
+  GraduationCap, Briefcase, FlaskConical, Code2, Zap, Lock, Wifi, WifiOff,
 } from 'lucide-react';
-import { createSession } from '@/lib/api';
+import { createSession, checkHealth } from '@/lib/api';
 import type { AudienceType, ModelOption } from '@/lib/types';
 
 const TOPIC_CHIPS = [
@@ -78,8 +78,29 @@ export default function HomePage() {
   const [error, setError]         = useState('');
   const [howOpen, setHowOpen]     = useState(false);
 
+  // Backend wake-up check
+  const [backendState, setBackendState] = useState<'checking' | 'ready' | 'error'>('checking');
+
+  useEffect(() => {
+    let cancelled = false;
+    async function wakeBackend() {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        try {
+          await checkHealth();
+          if (!cancelled) setBackendState('ready');
+          return;
+        } catch {
+          if (attempt < 7) await new Promise(r => setTimeout(r, 8000));
+        }
+      }
+      if (!cancelled) setBackendState('error');
+    }
+    wakeBackend();
+    return () => { cancelled = true; };
+  }, []);
+
   const arxivValid = isValidArxivUrl(arxivUrl);
-  const canSubmit  = !isLoading && apiKey.trim().length > 0 && (arxivValid || topicQuery.trim().length > 2);
+  const canSubmit  = backendState === 'ready' && !isLoading && apiKey.trim().length > 0 && (arxivValid || topicQuery.trim().length > 2);
 
   const handleTopicChip = useCallback((topic: string) => {
     setTopicQuery(topic);
@@ -163,6 +184,29 @@ export default function HomePage() {
 
       {/* ── Form ───────────────────────────────────────────────── */}
       <section className="max-w-2xl mx-auto px-4 py-10 space-y-5">
+
+        {/* Backend status banner */}
+        {backendState === 'checking' && (
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm animate-fade-in">
+            <Loader2 className="w-4 h-4 shrink-0 animate-spin text-amber-500" />
+            <div>
+              <span className="font-semibold">Waking up backend…</span>
+              <span className="text-amber-600 ml-2">Free tier may take up to 60 seconds on first load.</span>
+            </div>
+          </div>
+        )}
+        {backendState === 'ready' && (
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-2.5 text-sm animate-fade-in">
+            <Wifi className="w-4 h-4 shrink-0" />
+            <span className="font-medium">Backend connected — ready to generate.</span>
+          </div>
+        )}
+        {backendState === 'error' && (
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-2.5 text-sm animate-fade-in">
+            <WifiOff className="w-4 h-4 shrink-0" />
+            <span>Backend unreachable. <button onClick={() => { setBackendState('checking'); window.location.reload(); }} className="underline font-medium">Retry</button></span>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm animate-fade-in flex items-start gap-2">
@@ -332,7 +376,9 @@ export default function HomePage() {
 
         {!canSubmit && !isLoading && (
           <p className="text-center text-xs text-gray-400">
-            {!apiKey.trim() ? 'Enter your OpenRouter API key to continue'
+            {backendState === 'checking' ? 'Waiting for backend to wake up…'
+              : backendState === 'error' ? 'Backend unreachable — cannot submit'
+              : !apiKey.trim() ? 'Enter your OpenRouter API key to continue'
               : 'Enter an ArXiv URL or a topic to continue'}
           </p>
         )}
