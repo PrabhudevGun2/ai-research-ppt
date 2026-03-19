@@ -3,157 +3,88 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Key,
-  Link2,
-  Search,
-  Users,
-  Cpu,
-  Sparkles,
-  ChevronDown,
-  ChevronRight,
-  CheckCircle2,
-  Loader2,
-  BookOpen,
-  Brain,
-  Zap,
-  FileText,
-  Presentation,
-  ArrowRight,
-  GraduationCap,
-  Briefcase,
-  FlaskConical,
-  Code2,
+  Key, Link2, Search, Cpu, Sparkles, ChevronDown, CheckCircle2,
+  Loader2, BookOpen, Brain, FileText, Presentation, ArrowRight,
+  GraduationCap, Briefcase, FlaskConical, Code2, Zap, Lock,
 } from 'lucide-react';
 import { createSession } from '@/lib/api';
 import type { AudienceType, ModelOption } from '@/lib/types';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const TOPIC_CHIPS = [
-  'Transformer Attention',
-  'Diffusion Models',
-  'Large Language Models',
-  'Reinforcement Learning',
-  'Graph Neural Networks',
-  'Vision Transformers',
-  'Multimodal AI',
-  'AI Safety',
+  'Transformer Attention', 'Diffusion Models', 'Large Language Models',
+  'Reinforcement Learning', 'Graph Neural Networks', 'Vision Transformers',
+  'Multimodal AI', 'AI Safety',
 ];
 
 const AUDIENCE_OPTIONS = [
-  {
-    value: 'executive' as AudienceType,
-    label: 'Executive / Manager',
-    description: 'High-level insights, business impact, minimal jargon',
-    Icon: Briefcase,
-  },
-  {
-    value: 'student' as AudienceType,
-    label: 'Student / Fresher',
-    description: 'Clear explanations, fundamentals first, learning-focused',
-    Icon: GraduationCap,
-  },
-  {
-    value: 'engineer' as AudienceType,
-    label: 'AI Engineer',
-    description: 'Technical depth, implementation details, code concepts',
-    Icon: Code2,
-  },
-  {
-    value: 'researcher' as AudienceType,
-    label: 'Researcher',
-    description: 'Full academic depth, methodology, citations, novelty',
-    Icon: FlaskConical,
-  },
+  { value: 'executive' as AudienceType, label: 'Executive', sub: 'Manager / Leader', description: 'Big-picture impact, no jargon', Icon: Briefcase, color: 'violet' },
+  { value: 'fresher' as AudienceType, label: 'Student', sub: 'Fresher / Learner', description: 'Clear fundamentals, step-by-step', Icon: GraduationCap, color: 'emerald' },
+  { value: 'engineer' as AudienceType, label: 'Engineer', sub: 'AI / ML Engineer', description: 'Technical depth, code concepts', Icon: Code2, color: 'blue' },
+  { value: 'researcher' as AudienceType, label: 'Researcher', sub: 'Academic / Scientist', description: 'Full depth, equations, citations', Icon: FlaskConical, color: 'amber' },
 ];
+
+const AUDIENCE_COLORS: Record<string, string> = {
+  violet: 'border-violet-300 bg-violet-50 ring-violet-400',
+  emerald: 'border-emerald-300 bg-emerald-50 ring-emerald-400',
+  blue:    'border-blue-300 bg-blue-50 ring-blue-500',
+  amber:   'border-amber-300 bg-amber-50 ring-amber-400',
+};
+
+const AUDIENCE_ICON_COLORS: Record<string, string> = {
+  violet: 'text-violet-600 bg-violet-100',
+  emerald: 'text-emerald-600 bg-emerald-100',
+  blue:    'text-blue-600 bg-blue-100',
+  amber:   'text-amber-600 bg-amber-100',
+};
 
 const MODELS: ModelOption[] = [
   { value: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash', provider: 'Google' },
-  { value: 'google/gemini-2.5-pro-preview', label: 'Gemini 2.5 Pro Preview', provider: 'Google' },
-  { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet', provider: 'Anthropic' },
-  { value: 'anthropic/claude-3.5-haiku', label: 'Claude 3.5 Haiku', provider: 'Anthropic' },
+  { value: 'anthropic/claude-sonnet-4-5', label: 'Claude Sonnet 4.5', provider: 'Anthropic' },
+  { value: 'anthropic/claude-3-haiku', label: 'Claude 3 Haiku (fast)', provider: 'Anthropic' },
   { value: 'openai/gpt-4o', label: 'GPT-4o', provider: 'OpenAI' },
-  { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI' },
-  { value: 'meta-llama/llama-3.1-70b-instruct', label: 'Llama 3.1 70B', provider: 'Meta' },
-  { value: 'mistralai/mistral-large', label: 'Mistral Large', provider: 'Mistral' },
+  { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini (fast)', provider: 'OpenAI' },
+  { value: 'google/gemini-pro-1.5', label: 'Gemini Pro 1.5', provider: 'Google' },
+  { value: 'meta-llama/llama-3.1-70b-instruct', label: 'Llama 3.1 70B (free)', provider: 'Meta' },
+  { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat V3', provider: 'DeepSeek' },
 ];
 
 const HOW_IT_WORKS = [
-  {
-    Icon: Search,
-    title: 'Discover Papers',
-    description:
-      'Paste an ArXiv URL directly or search by topic. The AI fetches and ranks the most relevant papers.',
-  },
-  {
-    Icon: Brain,
-    title: 'Deep Synthesis',
-    description:
-      'The AI reads the full paper, extracts key concepts, methodology, results, and creates structured slide content.',
-  },
-  {
-    Icon: FileText,
-    title: 'Review & Edit',
-    description:
-      'Inspect every slide before generating. Edit titles and bullet points to match your exact needs.',
-  },
-  {
-    Icon: Presentation,
-    title: 'Download',
-    description:
-      'Get your presentation as PPTX, DOCX, and PDF — ready for any platform.',
-  },
+  { Icon: Search,       title: 'Find Paper',    description: 'Paste an ArXiv URL or search by topic.' },
+  { Icon: Brain,        title: 'AI Synthesis',  description: 'AI reads the full paper and structures slide content.' },
+  { Icon: FileText,     title: 'Review & Edit', description: 'Preview every slide and refine before generating.' },
+  { Icon: Presentation, title: 'Download',      description: 'Export as PPTX, Word doc, and PDF instantly.' },
 ];
 
-// ─── Validation ───────────────────────────────────────────────────────────────
-
 function isValidArxivUrl(url: string): boolean {
-  return /arxiv\.org\/(abs|pdf)\/[\d.]+/.test(url);
+  return /arxiv\.org\/(abs|pdf)\/[\d.]+/.test(url) || /^\d{4}\.\d{4,5}$/.test(url.trim());
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function StepLabel({ number, label }: { number: number; label: string }) {
+function StepBadge({ n }: { n: number }) {
   return (
-    <div className="flex items-center gap-3 mb-3">
-      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-blue-600/20 border border-blue-500/40 text-blue-400 text-sm font-bold shrink-0">
-        {number}
-      </div>
-      <span className="text-slate-300 font-medium text-sm uppercase tracking-wider">
-        {label}
-      </span>
-    </div>
+    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold mr-2 shrink-0">
+      {n}
+    </span>
   );
 }
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const router = useRouter();
-
-  // Form state
-  const [apiKey, setApiKey] = useState('');
-  const [arxivUrl, setArxivUrl] = useState('');
+  const [apiKey, setApiKey]       = useState('');
+  const [arxivUrl, setArxivUrl]   = useState('');
   const [topicQuery, setTopicQuery] = useState('');
-  const [audience, setAudience] = useState<AudienceType>('researcher');
-  const [model, setModel] = useState(MODELS[0].value);
+  const [audience, setAudience]   = useState<AudienceType>('engineer');
+  const [model, setModel]         = useState(MODELS[0].value);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [accordionOpen, setAccordionOpen] = useState(false);
+  const [error, setError]         = useState('');
+  const [howOpen, setHowOpen]     = useState(false);
 
   const arxivValid = isValidArxivUrl(arxivUrl);
-  const canSubmit =
-    !isLoading &&
-    apiKey.trim().length > 0 &&
-    (arxivValid || topicQuery.trim().length > 2);
+  const canSubmit  = !isLoading && apiKey.trim().length > 0 && (arxivValid || topicQuery.trim().length > 2);
 
-  const handleTopicChip = useCallback(
-    (topic: string) => {
-      setTopicQuery(topic);
-      setArxivUrl('');
-    },
-    []
-  );
+  const handleTopicChip = useCallback((topic: string) => {
+    setTopicQuery(topic);
+    setArxivUrl('');
+  }, []);
 
   const handleArxivChange = (val: string) => {
     setArxivUrl(val);
@@ -165,16 +96,9 @@ export default function HomePage() {
     setIsLoading(true);
     setError('');
     try {
-      const payload: Record<string, string> = {
-        api_key: apiKey.trim(),
-        model,
-        audience,
-      };
-      if (arxivValid && arxivUrl.trim()) {
-        payload.arxiv_url = arxivUrl.trim();
-      } else {
-        payload.user_query = topicQuery.trim();
-      }
+      const payload: Record<string, string> = { api_key: apiKey.trim(), model, audience };
+      if (arxivValid && arxivUrl.trim()) payload.arxiv_url = arxivUrl.trim();
+      else payload.user_query = topicQuery.trim();
       const data = await createSession(payload);
       router.push(`/session/${data.session_id}`);
     } catch (err: unknown) {
@@ -184,63 +108,52 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen">
-      {/* ── Hero ─────────────────────────────────────────────────── */}
-      <section
-        className="relative overflow-hidden"
-        style={{
-          background:
-            'linear-gradient(160deg, #0b1120 0%, #0c1a3a 45%, #0b1120 100%)',
-        }}
-      >
-        {/* Decorative orbs */}
-        <div
-          className="absolute top-[-80px] right-[-80px] w-[500px] h-[500px] rounded-full opacity-10 pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(99,102,241,0.6) 0%, transparent 70%)',
-            filter: 'blur(60px)',
-          }}
-        />
-        <div
-          className="absolute bottom-[-100px] left-[-60px] w-[400px] h-[400px] rounded-full opacity-8 pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(59,130,246,0.5) 0%, transparent 70%)',
-            filter: 'blur(60px)',
-          }}
-        />
-
-        <div className="relative max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/25 text-blue-400 text-xs font-semibold px-4 py-2 rounded-full mb-6 tracking-wide uppercase">
-            <Sparkles className="w-3.5 h-3.5" />
-            Powered by OpenRouter AI Models
+    <div className="min-h-screen bg-slate-50">
+      {/* ── Navbar ─────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-gray-100 px-6 py-3">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+              <Presentation className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-gray-900 text-sm">ResearchPPT</span>
+            <span className="hidden sm:inline text-xs text-gray-400 ml-1">AI Generator</span>
           </div>
+          <a
+            href="https://openrouter.ai/keys"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+          >
+            Get API Key <ArrowRight className="w-3 h-3" />
+          </a>
+        </div>
+      </nav>
 
-          <h1 className="text-5xl sm:text-6xl font-extrabold leading-tight mb-5">
-            <span className="text-gradient">AI Research</span>
-            <br />
-            <span className="text-white">PPT Generator</span>
+      {/* ── Hero ───────────────────────────────────────────────── */}
+      <section className="bg-white border-b border-gray-100">
+        <div className="max-w-3xl mx-auto px-6 py-16 text-center">
+          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold px-4 py-2 rounded-full mb-6">
+            <Sparkles className="w-3.5 h-3.5" />
+            Powered by OpenRouter · Any AI Model
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight mb-4">
+            Turn any{' '}
+            <span className="text-gradient">ArXiv paper</span>
+            <br />into a presentation
           </h1>
-
-          <p className="text-slate-400 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-8">
-            Transform any ArXiv paper or research topic into a beautifully structured
-            PowerPoint presentation — in minutes, not hours.
+          <p className="text-gray-500 text-lg max-w-xl mx-auto mb-8 leading-relaxed">
+            Paste a paper link or search by topic. The AI reads, synthesizes, and builds
+            professional slides — tailored to your audience.
           </p>
-
-          {/* Quick feature pills */}
-          <div className="flex flex-wrap justify-center gap-3 text-sm text-slate-400">
+          <div className="flex flex-wrap justify-center gap-3 text-sm text-gray-500">
             {[
-              { Icon: Zap, text: 'Auto-synthesizes paper content' },
-              { Icon: BookOpen, text: 'ArXiv URL or topic search' },
-              { Icon: FileText, text: 'PPTX · DOCX · PDF export' },
+              { Icon: Zap,          text: '15+ slides generated' },
+              { Icon: BookOpen,     text: 'ArXiv URL or topic search' },
+              { Icon: FileText,     text: 'PPTX · DOCX · PDF export' },
             ].map(({ Icon, text }) => (
-              <div
-                key={text}
-                className="flex items-center gap-1.5 bg-slate-800/60 border border-slate-700/60 rounded-full px-3 py-1.5"
-              >
-                <Icon className="w-3.5 h-3.5 text-blue-400" />
+              <div key={text} className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5">
+                <Icon className="w-3.5 h-3.5 text-blue-500" />
                 {text}
               </div>
             ))}
@@ -248,119 +161,97 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Form ─────────────────────────────────────────────────── */}
-      <section className="max-w-2xl mx-auto px-6 py-10 space-y-6">
-        {/* Error */}
+      {/* ── Form ───────────────────────────────────────────────── */}
+      <section className="max-w-2xl mx-auto px-4 py-10 space-y-5">
+
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3 text-sm animate-fade-in">
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm animate-fade-in flex items-start gap-2">
+            <span className="text-red-500 font-bold mt-0.5">!</span>
             {error}
           </div>
         )}
 
         {/* Step 1: API Key */}
-        <div className="card-base animate-slide-up">
-          <StepLabel number={1} label="OpenRouter API Key" />
+        <div className="card-base">
+          <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+            <StepBadge n={1} /> OpenRouter API Key
+          </label>
           <div className="relative">
-            <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="sk-or-v1-..."
-              className={`input-base pl-10 pr-10 transition-all ${
-                apiKey.trim() ? 'border-green-500/60 ring-1 ring-green-500/20' : ''
-              }`}
+              className={`input-base pl-10 pr-10 ${apiKey.trim() ? 'border-green-400 ring-1 ring-green-300' : ''}`}
             />
             {apiKey.trim() && (
-              <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500 animate-fade-in" />
+              <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-2">
-            Get your free key at{' '}
-            <a
-              href="https://openrouter.ai/keys"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
-            >
-              openrouter.ai/keys
-            </a>
-            . Your key is never stored.
+          <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+            <Lock className="w-3 h-3" />
+            Never stored. Used only for this session. Free key at{' '}
+            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">openrouter.ai/keys</a>
           </p>
         </div>
 
         {/* Step 2: ArXiv URL */}
-        <div className="card-base animate-slide-up">
-          <StepLabel number={2} label="ArXiv Paper URL" />
+        <div className="card-base">
+          <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+            <StepBadge n={2} /> ArXiv Paper URL
+            <span className="ml-2 text-xs font-normal text-gray-400">(recommended)</span>
+          </label>
           <div className="relative">
-            <Link2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Link2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="url"
               value={arxivUrl}
               onChange={(e) => handleArxivChange(e.target.value)}
-              placeholder="https://arxiv.org/abs/2401.12345"
+              placeholder="https://arxiv.org/abs/1706.03762"
               className={`input-base pl-10 pr-10 ${
-                arxivUrl && !arxivValid
-                  ? 'border-red-500/50 ring-1 ring-red-500/20'
-                  : arxivValid
-                  ? 'border-green-500/60 ring-1 ring-green-500/20'
-                  : ''
-              }`}
+                arxivUrl && !arxivValid ? 'border-red-400 ring-1 ring-red-300'
+                : arxivValid           ? 'border-green-400 ring-1 ring-green-300'
+                : ''}`}
             />
-            {arxivValid && (
-              <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
-            )}
-            {arxivUrl && !arxivValid && (
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-400 text-xs font-bold">
-                !
-              </span>
-            )}
+            {arxivValid && <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />}
           </div>
           {arxivUrl && !arxivValid && (
-            <p className="text-xs text-red-400 mt-1.5">
-              Please enter a valid ArXiv URL (e.g. arxiv.org/abs/2401.12345)
-            </p>
+            <p className="text-xs text-red-500 mt-1.5">Enter a valid ArXiv URL — e.g. arxiv.org/abs/2401.12345</p>
           )}
         </div>
 
-        {/* OR Divider */}
+        {/* OR */}
         <div className="flex items-center gap-4">
-          <div className="flex-1 h-px bg-slate-700" />
-          <span className="text-slate-500 text-xs font-semibold uppercase tracking-widest px-1">
-            or
-          </span>
-          <div className="flex-1 h-px bg-slate-700" />
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-xs text-gray-400 font-semibold uppercase tracking-widest">or</span>
+          <div className="flex-1 h-px bg-gray-200" />
         </div>
 
         {/* Step 3: Topic Search */}
-        <div className="card-base animate-slide-up">
-          <StepLabel number={3} label="Search by Topic" />
+        <div className="card-base">
+          <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+            <StepBadge n={3} /> Search by Topic
+          </label>
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               value={topicQuery}
-              onChange={(e) => {
-                setTopicQuery(e.target.value);
-                if (e.target.value.trim()) setArxivUrl('');
-              }}
+              onChange={(e) => { setTopicQuery(e.target.value); if (e.target.value.trim()) setArxivUrl(''); }}
               placeholder="e.g. attention mechanisms in transformers"
-              className={`input-base pl-10 ${
-                topicQuery.trim().length > 2 ? 'border-blue-500/50 ring-1 ring-blue-500/20' : ''
-              }`}
+              className={`input-base pl-10 ${topicQuery.trim().length > 2 ? 'border-blue-400 ring-1 ring-blue-300' : ''}`}
             />
           </div>
-
-          {/* Topic chips */}
           <div className="flex flex-wrap gap-2 mt-3">
             {TOPIC_CHIPS.map((topic) => (
               <button
                 key={topic}
                 onClick={() => handleTopicChip(topic)}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all duration-150 ${
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
                   topicQuery === topic
-                    ? 'bg-blue-600 border-blue-500 text-white shadow-blue-glow'
-                    : 'bg-slate-700/60 border-slate-600 text-slate-300 hover:border-blue-500/50 hover:text-blue-300'
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600'
                 }`}
               >
                 {topic}
@@ -370,57 +261,47 @@ export default function HomePage() {
         </div>
 
         {/* Step 4: Audience */}
-        <div className="card-base animate-slide-up">
-          <StepLabel number={4} label="Target Audience" />
+        <div className="card-base">
+          <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+            <StepBadge n={4} /> Target Audience
+          </label>
           <div className="grid grid-cols-2 gap-3">
-            {AUDIENCE_OPTIONS.map(({ value, label, description, Icon }) => (
-              <button
-                key={value}
-                onClick={() => setAudience(value)}
-                className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border text-left transition-all duration-200 ${
-                  audience === value
-                    ? 'bg-blue-600/15 border-blue-500/60 shadow-blue-glow'
-                    : 'bg-slate-700/40 border-slate-600/60 hover:border-slate-500'
-                }`}
-              >
-                {audience === value && (
-                  <div className="absolute top-2 right-2">
-                    <CheckCircle2 className="w-4 h-4 text-blue-400" />
-                  </div>
-                )}
-                <div
-                  className={`p-2 rounded-lg ${
-                    audience === value ? 'bg-blue-500/20' : 'bg-slate-600/40'
+            {AUDIENCE_OPTIONS.map(({ value, label, sub, description, Icon, color }) => {
+              const isSelected = audience === value;
+              const ringClass  = AUDIENCE_COLORS[color];
+              const iconClass  = AUDIENCE_ICON_COLORS[color];
+              return (
+                <button
+                  key={value}
+                  onClick={() => setAudience(value)}
+                  className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border-2 text-left transition-all duration-150 ${
+                    isSelected ? `${ringClass} ring-2 shadow-sm` : 'border-gray-100 bg-gray-50 hover:border-gray-200'
                   }`}
                 >
-                  <Icon
-                    className={`w-4 h-4 ${
-                      audience === value ? 'text-blue-400' : 'text-slate-400'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <div
-                    className={`text-sm font-semibold ${
-                      audience === value ? 'text-blue-300' : 'text-slate-200'
-                    }`}
-                  >
-                    {label}
+                  {isSelected && (
+                    <CheckCircle2 className="absolute top-2.5 right-2.5 w-4 h-4 text-blue-600" />
+                  )}
+                  <div className={`p-2 rounded-lg ${iconClass}`}>
+                    <Icon className="w-4 h-4" />
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5 leading-snug">
-                    {description}
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{label}</div>
+                    <div className="text-xs text-gray-500">{sub}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{description}</div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Step 5: Model */}
-        <div className="card-base animate-slide-up">
-          <StepLabel number={5} label="AI Model" />
+        <div className="card-base">
+          <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
+            <StepBadge n={5} /> AI Model
+          </label>
           <div className="relative">
-            <Cpu className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+            <Cpu className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
@@ -432,7 +313,7 @@ export default function HomePage() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
         </div>
 
@@ -443,65 +324,44 @@ export default function HomePage() {
           className="btn-primary w-full flex items-center justify-center gap-3 text-base py-4"
         >
           {isLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Creating session…
-            </>
+            <><Loader2 className="w-5 h-5 animate-spin" /> Creating session…</>
           ) : (
-            <>
-              <Sparkles className="w-5 h-5" />
-              Generate Presentation
-              <ArrowRight className="w-5 h-5" />
-            </>
+            <><Sparkles className="w-5 h-5" /> Generate Presentation <ArrowRight className="w-5 h-5" /></>
           )}
         </button>
 
         {!canSubmit && !isLoading && (
-          <p className="text-center text-xs text-slate-600">
-            {!apiKey.trim()
-              ? 'Enter your OpenRouter API key to continue'
-              : 'Enter an ArXiv URL or topic query to continue'}
+          <p className="text-center text-xs text-gray-400">
+            {!apiKey.trim() ? 'Enter your OpenRouter API key to continue'
+              : 'Enter an ArXiv URL or a topic to continue'}
           </p>
         )}
-      </section>
 
-      {/* ── How it Works ─────────────────────────────────────────── */}
-      <section className="max-w-2xl mx-auto px-6 pb-16">
+        {/* How it works */}
         <div className="card-base">
           <button
             className="w-full flex items-center justify-between text-left"
-            onClick={() => setAccordionOpen((o) => !o)}
-            aria-expanded={accordionOpen}
+            onClick={() => setHowOpen((o) => !o)}
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-500/10 rounded-lg">
-                <BookOpen className="w-5 h-5 text-purple-400" />
-              </div>
-              <span className="text-slate-200 font-semibold">How it works</span>
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-blue-500" />
+              <span className="text-sm font-semibold text-gray-700">How it works</span>
             </div>
-            <ChevronDown
-              className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${
-                accordionOpen ? 'rotate-180' : ''
-              }`}
-            />
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${howOpen ? 'rotate-180' : ''}`} />
           </button>
-
-          {accordionOpen && (
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+          {howOpen && (
+            <div className="mt-5 grid grid-cols-2 gap-3 animate-fade-in">
               {HOW_IT_WORKS.map(({ Icon, title, description }, idx) => (
-                <div
-                  key={title}
-                  className="flex gap-4 p-4 bg-slate-700/30 rounded-xl border border-slate-700/50"
-                >
-                  <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-blue-500/10 text-blue-400 font-bold text-sm border border-blue-500/20">
+                <div key={title} className="flex gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 font-bold text-xs border border-blue-100">
                     {idx + 1}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Icon className="w-4 h-4 text-blue-400" />
-                      <span className="text-slate-200 font-medium text-sm">{title}</span>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Icon className="w-3.5 h-3.5 text-blue-500" />
+                      <span className="text-gray-800 font-semibold text-xs">{title}</span>
                     </div>
-                    <p className="text-slate-500 text-xs leading-relaxed">{description}</p>
+                    <p className="text-gray-400 text-xs leading-relaxed">{description}</p>
                   </div>
                 </div>
               ))}
@@ -510,28 +370,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────────────── */}
-      <footer className="border-t border-slate-800 py-6 text-center text-xs text-slate-600">
-        <p>
-          Built with Next.js · Powered by{' '}
-          <a
-            href="https://openrouter.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-slate-500 hover:text-slate-400 underline underline-offset-2"
-          >
-            OpenRouter
-          </a>{' '}
-          · Papers from{' '}
-          <a
-            href="https://arxiv.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-slate-500 hover:text-slate-400 underline underline-offset-2"
-          >
-            ArXiv
-          </a>
-        </p>
+      {/* ── Footer ─────────────────────────────────────────────── */}
+      <footer className="border-t border-gray-100 bg-white py-6 text-center text-xs text-gray-400">
+        Built with Next.js ·{' '}
+        <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 underline underline-offset-2">OpenRouter</a>
+        {' '}· Papers from{' '}
+        <a href="https://arxiv.org" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 underline underline-offset-2">ArXiv</a>
       </footer>
     </div>
   );

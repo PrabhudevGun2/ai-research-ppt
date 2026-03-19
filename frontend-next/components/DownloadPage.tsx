@@ -3,306 +3,140 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  CheckCircle2,
-  Download,
-  Presentation,
-  FileText,
-  FileDown,
-  Loader2,
-  PartyPopper,
-  Calendar,
-  Layers,
-  Tag,
-  ArrowLeft,
-  AlertCircle,
-  RotateCcw,
+  CheckCircle2, Download, Presentation, FileText, FileDown,
+  Loader2, PartyPopper, Calendar, Layers, Tag, AlertCircle, RotateCcw,
 } from 'lucide-react';
 import type { GeneratedPPT } from '@/lib/types';
 import { downloadPPT, downloadDOCX, downloadPDF, triggerDownload } from '@/lib/api';
 
-// ─── Format helpers ───────────────────────────────────────────────────────────
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
+function formatDate(iso: string) {
+  try { return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch { return iso; }
 }
 
-// ─── Download Card ────────────────────────────────────────────────────────────
-
-interface DownloadCardProps {
-  icon: React.ElementType;
-  format: string;
-  label: string;
-  description: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-  onDownload: () => Promise<void>;
-  available: boolean;
-}
-
-function DownloadCard({
-  icon: Icon,
-  format,
-  label,
-  description,
-  color,
-  bgColor,
-  borderColor,
-  onDownload,
-  available,
-}: DownloadCardProps) {
+function DownloadCard({ icon: Icon, format, label, description, iconColor, bgColor, borderColor, onDownload, available }: {
+  icon: React.ElementType; format: string; label: string; description: string;
+  iconColor: string; bgColor: string; borderColor: string;
+  onDownload: () => Promise<void>; available: boolean;
+}) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errMsg, setErrMsg] = useState('');
 
   const handleClick = async () => {
     if (!available || status === 'loading') return;
-    setStatus('loading');
-    setErrorMsg('');
+    setStatus('loading'); setErrMsg('');
     try {
       await onDownload();
       setStatus('done');
-      // Reset after 3s
       setTimeout(() => setStatus('idle'), 3000);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Download failed');
+      setErrMsg(err instanceof Error ? err.message : 'Download failed');
       setStatus('error');
     }
   };
 
   return (
-    <div
-      className={`card-base flex flex-col gap-4 card-hover ${
-        !available ? 'opacity-50' : ''
-      } ${
-        status === 'done'
-          ? 'border-emerald-500/40 shadow-green-glow'
-          : borderColor
-      }`}
-    >
-      {/* Icon */}
+    <div className={`bg-white border-2 rounded-2xl p-5 flex flex-col gap-4 transition-all ${
+      !available ? 'opacity-50' : 'hover:shadow-md'
+    } ${status === 'done' ? 'border-emerald-300' : available ? borderColor : 'border-gray-100'}`}>
       <div className={`self-start p-3 rounded-xl ${bgColor}`}>
-        <Icon className={`w-6 h-6 ${color}`} />
+        <Icon className={`w-6 h-6 ${iconColor}`} />
       </div>
-
-      {/* Info */}
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-1">
-          <span className={`text-lg font-bold ${color}`}>{format}</span>
-          <span
-            className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${bgColor} ${color} ${borderColor}`}
-          >
-            {label}
-          </span>
+          <span className={`text-lg font-bold ${iconColor}`}>{format}</span>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${bgColor} ${iconColor} ${borderColor}`}>{label}</span>
         </div>
-        <p className="text-slate-400 text-sm leading-snug">{description}</p>
+        <p className="text-gray-400 text-sm leading-snug">{description}</p>
       </div>
-
-      {/* Error */}
       {status === 'error' && (
-        <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-2">
-          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          {errorMsg}
+        <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {errMsg}
         </div>
       )}
-
-      {/* Button */}
-      <button
-        onClick={handleClick}
-        disabled={!available || status === 'loading'}
-        className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-200 ${
-          status === 'done'
-            ? 'bg-emerald-600 text-white border border-emerald-500'
-            : available
-            ? `bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 hover:${borderColor}`
-            : 'bg-slate-800 text-slate-600 border border-slate-700 cursor-not-allowed'
-        }`}
-      >
-        {status === 'loading' ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Downloading…
-          </>
-        ) : status === 'done' ? (
-          <>
-            <CheckCircle2 className="w-4 h-4" />
-            Downloaded!
-          </>
-        ) : available ? (
-          <>
-            <Download className="w-4 h-4" />
-            Download {format}
-          </>
-        ) : (
-          'Not available'
-        )}
+      <button onClick={handleClick} disabled={!available || status === 'loading'}
+        className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
+          status === 'done'   ? 'bg-emerald-600 text-white'
+          : available         ? 'bg-gray-900 hover:bg-gray-800 text-white disabled:opacity-50'
+          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+        }`}>
+        {status === 'loading' ? <><Loader2 className="w-4 h-4 animate-spin" /> Downloading…</>
+          : status === 'done'  ? <><CheckCircle2 className="w-4 h-4" /> Downloaded!</>
+          : available          ? <><Download className="w-4 h-4" /> Download {format}</>
+          : 'Not available'}
       </button>
     </div>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
-interface DownloadPageProps {
-  generatedPpt: GeneratedPPT;
-  sessionId: string;
-}
-
-export default function DownloadPage({ generatedPpt, sessionId }: DownloadPageProps) {
+export default function DownloadPage({ generatedPpt, sessionId }: { generatedPpt: GeneratedPPT; sessionId: string }) {
   const router = useRouter();
 
-  const hasPptx = Boolean(generatedPpt.file_path);
-  const hasDocx = Boolean(generatedPpt.doc_path);
-  const hasPdf = Boolean(generatedPpt.pdf_path);
-
-  const handleDownloadPPTX = async () => {
-    const blob = await downloadPPT(sessionId);
-    triggerDownload(blob, `presentation-${sessionId.slice(0, 8)}.pptx`);
-  };
-
-  const handleDownloadDOCX = async () => {
-    const blob = await downloadDOCX(sessionId);
-    triggerDownload(blob, `presentation-${sessionId.slice(0, 8)}.docx`);
-  };
-
-  const handleDownloadPDF = async () => {
-    const blob = await downloadPDF(sessionId);
-    triggerDownload(blob, `presentation-${sessionId.slice(0, 8)}.pdf`);
-  };
-
   return (
-    <div className="min-h-screen px-6 py-12">
+    <div className="min-h-screen bg-slate-50 px-4 py-12">
       <div className="max-w-3xl mx-auto">
+
         {/* Success banner */}
-        <div
-          className="rounded-2xl border border-emerald-500/25 overflow-hidden mb-10 animate-fade-in"
-          style={{
-            background:
-              'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(5,150,105,0.05) 100%)',
-          }}
-        >
+        <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl overflow-hidden mb-8 animate-fade-in">
           <div className="flex flex-col sm:flex-row items-center gap-5 p-6">
-            {/* Big check icon */}
-            <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/30">
-              <PartyPopper className="w-8 h-8 text-emerald-400" />
+            <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100 border-2 border-emerald-300">
+              <PartyPopper className="w-8 h-8 text-emerald-600" />
             </div>
             <div className="text-center sm:text-left">
-              <h2 className="text-2xl font-bold text-emerald-300 mb-1">
-                Presentation Ready!
-              </h2>
-              <p className="text-emerald-600 text-sm">
-                Your research has been transformed into a structured presentation.
-                Download below in your preferred format.
-              </p>
+              <h2 className="text-2xl font-bold text-emerald-800 mb-1">Presentation Ready!</h2>
+              <p className="text-emerald-600 text-sm">Your research has been transformed into a structured presentation.</p>
             </div>
           </div>
-
-          {/* Presentation stats */}
-          <div className="border-t border-emerald-500/15 px-6 py-4 flex flex-wrap gap-x-6 gap-y-2">
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Layers className="w-4 h-4 text-emerald-500" />
-              <span>
-                <span className="font-semibold text-slate-200">{generatedPpt.slide_count}</span>{' '}
-                slides
-              </span>
+          <div className="border-t border-emerald-200 px-6 py-4 flex flex-wrap gap-x-6 gap-y-2 bg-emerald-50/50">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Layers className="w-4 h-4 text-emerald-600" />
+              <span><span className="font-semibold text-gray-900">{generatedPpt.slide_count}</span> slides</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Calendar className="w-4 h-4 text-emerald-500" />
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Calendar className="w-4 h-4 text-emerald-600" />
               <span>{formatDate(generatedPpt.generated_at)}</span>
             </div>
             {generatedPpt.topics_covered.length > 0 && (
-              <div className="flex items-center gap-2 text-sm text-slate-400 flex-wrap">
-                <Tag className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span className="flex flex-wrap gap-1">
-                  {generatedPpt.topics_covered.slice(0, 5).map((topic) => (
-                    <span
-                      key={topic}
-                      className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full text-xs"
-                    >
-                      {topic}
-                    </span>
-                  ))}
-                  {generatedPpt.topics_covered.length > 5 && (
-                    <span className="text-slate-600 text-xs">
-                      +{generatedPpt.topics_covered.length - 5} more
-                    </span>
-                  )}
-                </span>
+              <div className="flex items-center gap-2 text-sm text-gray-600 flex-wrap">
+                <Tag className="w-4 h-4 text-emerald-600 shrink-0" />
+                {generatedPpt.topics_covered.slice(0, 2).map(t => (
+                  <span key={t} className="bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-xs">{t.slice(0, 60)}</span>
+                ))}
               </div>
             )}
           </div>
         </div>
 
-        {/* Download cards */}
-        <h3 className="text-slate-300 font-semibold text-sm uppercase tracking-wider mb-4">
-          Download Formats
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+        <h3 className="text-gray-700 font-semibold text-sm uppercase tracking-wider mb-4">Download Formats</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <DownloadCard
-            icon={Presentation}
-            format="PPTX"
-            label="PowerPoint"
-            description="Native PowerPoint format. Open with Microsoft PowerPoint, Google Slides, or Keynote."
-            color="text-orange-400"
-            bgColor="bg-orange-500/10"
-            borderColor="border-orange-500/30"
-            onDownload={handleDownloadPPTX}
-            available={hasPptx}
-          />
+            icon={Presentation} format="PPTX" label="PowerPoint"
+            description="Open with Microsoft PowerPoint, Google Slides, or Keynote."
+            iconColor="text-orange-600" bgColor="bg-orange-50" borderColor="border-orange-200"
+            onDownload={async () => { const b = await downloadPPT(sessionId); triggerDownload(b, `presentation-${sessionId.slice(0,8)}.pptx`); }}
+            available={Boolean(generatedPpt.file_path)} />
           <DownloadCard
-            icon={FileText}
-            format="DOCX"
-            label="Word Document"
-            description="Full document format with slides as formatted pages. Great for printing and editing."
-            color="text-blue-400"
-            bgColor="bg-blue-500/10"
-            borderColor="border-blue-500/30"
-            onDownload={handleDownloadDOCX}
-            available={hasDocx}
-          />
+            icon={FileText} format="DOCX" label="Word Document"
+            description="Full document with slides as formatted pages. Great for editing."
+            iconColor="text-blue-600" bgColor="bg-blue-50" borderColor="border-blue-200"
+            onDownload={async () => { const b = await downloadDOCX(sessionId); triggerDownload(b, `presentation-${sessionId.slice(0,8)}.docx`); }}
+            available={Boolean(generatedPpt.doc_path)} />
           <DownloadCard
-            icon={FileDown}
-            format="PDF"
-            label="PDF"
-            description="Portable format for sharing and viewing anywhere. Preserves all formatting."
-            color="text-red-400"
-            bgColor="bg-red-500/10"
-            borderColor="border-red-500/30"
-            onDownload={handleDownloadPDF}
-            available={hasPdf}
-          />
+            icon={FileDown} format="PDF" label="PDF Report"
+            description="Portable format for sharing. Preserves all formatting."
+            iconColor="text-red-600" bgColor="bg-red-50" borderColor="border-red-200"
+            onDownload={async () => { const b = await downloadPDF(sessionId); triggerDownload(b, `presentation-${sessionId.slice(0,8)}.pdf`); }}
+            available={Boolean(generatedPpt.pdf_path)} />
         </div>
 
-        {/* Action buttons */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={() => router.push('/')}
-            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 hover:shadow-blue-glow"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Generate Another Presentation
-          </button>
-          <button
-            onClick={() => router.back()}
-            className="btn-secondary flex items-center justify-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
+          <button onClick={() => router.push('/')}
+            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-sm">
+            <RotateCcw className="w-4 h-4" /> Generate Another Presentation
           </button>
         </div>
 
-        <p className="text-center text-xs text-slate-700 mt-6">
-          Session ID: <span className="font-mono">{sessionId}</span>
-        </p>
+        <p className="text-center text-xs text-gray-300 mt-6 font-mono">{sessionId}</p>
       </div>
     </div>
   );
