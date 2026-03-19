@@ -29,6 +29,7 @@ class CreateSessionRequest(BaseModel):
     arxiv_url: Optional[str] = None  # Direct arxiv link (takes precedence)
     model: Optional[str] = None   # override LLM_MODEL env var for this session
     api_key: Optional[str] = None  # BYOK: user's OpenRouter API key (never logged/persisted)
+    audience: Optional[str] = "engineer"  # "executive", "fresher", "engineer", "researcher"
 
 
 class ResumeRequest(BaseModel):
@@ -213,6 +214,7 @@ async def create_session(
     initial_state = {
         "session_id": session_id,
         "user_query": request.user_query or "",
+        "audience": request.audience or "engineer",
         "arxiv_url": request.arxiv_url,
         "is_single_paper_mode": is_single_paper_mode,
         "current_stage": initial_stage,
@@ -346,6 +348,32 @@ async def download_doc(session_id: str):
     return FileResponse(
         path=doc_path,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=filename,
+    )
+
+
+@router.get("/sessions/{session_id}/pdf/download")
+async def download_pdf(session_id: str):
+    """Stream the generated .pdf file."""
+    import os
+
+    registry = _session_registry.get(session_id)
+    if registry is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    state = registry.get("state", {})
+    generated_ppt = state.get("generated_ppt")
+    if not generated_ppt:
+        raise HTTPException(status_code=404, detail="PDF not yet generated")
+
+    pdf_path = generated_ppt.get("pdf_path")
+    if not pdf_path or not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="PDF file not found on disk")
+
+    filename = f"ai_research_{session_id[:8]}.pdf"
+    return FileResponse(
+        path=pdf_path,
+        media_type="application/pdf",
         filename=filename,
     )
 

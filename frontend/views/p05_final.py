@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime
-from utils.api_client import resume_session, download_ppt, download_doc
+from utils.api_client import resume_session, download_ppt, download_doc, download_pdf
 from utils.session_state import get_session, set_session
 
 
@@ -13,7 +13,7 @@ def render():
     stage = get_session("stage")
 
     if stage == "completed" or generated_ppt:
-        st.success("Your presentation and document are ready!")
+        st.success("Your presentation and documents are ready!")
 
         if generated_ppt:
             col1, col2, col3 = st.columns(3)
@@ -22,8 +22,12 @@ def render():
             with col2:
                 st.metric("Generated", generated_ppt.get("generated_at", "---"))
             with col3:
-                has_doc = bool(generated_ppt.get("doc_path"))
-                st.metric("Formats", "PPTX + DOCX" if has_doc else "PPTX")
+                formats = ["PPTX"]
+                if generated_ppt.get("doc_path"):
+                    formats.append("DOCX")
+                if generated_ppt.get("pdf_path"):
+                    formats.append("PDF")
+                st.metric("Formats", " + ".join(formats))
 
             topics = generated_ppt.get("topics_covered", [])
             if topics:
@@ -38,7 +42,7 @@ def render():
         st.subheader("Download Files")
         session_id = get_session("session_id")
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
 
         with col1:
             st.markdown("**PowerPoint Presentation**")
@@ -58,7 +62,7 @@ def render():
 
         with col2:
             st.markdown("**Word Document**")
-            st.caption("Detailed companion doc with full content and speaker notes")
+            st.caption("Detailed report with discussion notes")
             try:
                 docx_bytes = download_doc(session_id)
                 st.download_button(
@@ -70,6 +74,21 @@ def render():
                 )
             except Exception:
                 st.caption("Word document not available for this session.")
+
+        with col3:
+            st.markdown("**PDF Report**")
+            st.caption("Print-ready document with all content")
+            try:
+                pdf_bytes = download_pdf(session_id)
+                st.download_button(
+                    label="Download .pdf",
+                    data=pdf_bytes,
+                    file_name=f"research_report_{session_id[:8]}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
+            except Exception:
+                st.caption("PDF not available for this session.")
 
         st.divider()
 

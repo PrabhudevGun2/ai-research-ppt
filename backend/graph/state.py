@@ -51,6 +51,7 @@ class SlideContent(TypedDict):
 class GeneratedPPT(TypedDict):
     file_path: str
     doc_path: Optional[str]
+    pdf_path: Optional[str]
     session_id: str
     slide_count: int
     topics_covered: List[str]
@@ -69,6 +70,7 @@ class ResearchState(TypedDict):
     session_id: str
     user_query: str
     current_stage: str
+    audience: str  # "executive", "fresher", "engineer", "researcher"
     # Mode flag
     is_single_paper_mode: bool  # True if user provided arxiv link directly
     arxiv_url: Optional[str]  # Direct arxiv URL if provided

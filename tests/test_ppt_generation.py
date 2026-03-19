@@ -3,7 +3,10 @@ import os
 import tempfile
 import pytest
 from unittest.mock import patch
-from backend.agents.ppt_generation import ppt_generation_node, SLIDE_HANDLERS
+from backend.agents.ppt_generation import (
+    ppt_generation_node, SLIDE_HANDLERS,
+    _generate_word_document, _generate_pdf_document,
+)
 from backend.graph.state import Stage
 
 
@@ -82,6 +85,20 @@ def _make_sample_slides():
     ]
 
 
+_SAMPLE_PAPER = {
+    "title": "A Novel Approach to Testing: Transformer-Based Methods for Software Verification",
+    "authors": ["Alice Johnson", "Bob Smith", "Charlie Lee"],
+    "arxiv_id": "2401.12345",
+    "abstract": (
+        "We present a novel approach to software testing using transformer-based methods. "
+        "Our system achieves state-of-the-art results on multiple benchmarks, including "
+        "a 95.2% accuracy on GLUE and a 40% reduction in training time compared to prior work. "
+        "The proposed architecture combines multi-scale feature extraction with a custom loss "
+        "function that balances cross-entropy and contrastive objectives."
+    ),
+}
+
+
 class TestPptGenerationNode:
     def test_generates_pptx(self, tmp_path):
         with patch("backend.agents.ppt_generation.settings") as mock_settings:
@@ -89,12 +106,7 @@ class TestPptGenerationNode:
             state = {
                 "session_id": "test-ppt-gen-1",
                 "approved_slides": _make_sample_slides(),
-                "processed_paper": {
-                    "title": "A Novel Approach to Testing",
-                    "authors": ["Test Author"],
-                    "arxiv_id": "1234.56789",
-                    "abstract": "Test abstract.",
-                },
+                "processed_paper": _SAMPLE_PAPER,
                 "slide_contents": [],
             }
             result = ppt_generation_node(state)
@@ -114,20 +126,49 @@ class TestPptGenerationNode:
             state = {
                 "session_id": "test-ppt-gen-2",
                 "approved_slides": _make_sample_slides(),
-                "processed_paper": {
-                    "title": "Test Paper",
-                    "authors": ["Author One"],
-                    "arxiv_id": "1234.56789",
-                    "abstract": "Test abstract.",
-                },
+                "processed_paper": _SAMPLE_PAPER,
                 "slide_contents": [],
             }
             result = ppt_generation_node(state)
             ppt = result["generated_ppt"]
             doc_path = ppt.get("doc_path")
-            if doc_path:
-                assert os.path.exists(doc_path)
-                assert doc_path.endswith(".docx")
+            assert doc_path is not None
+            assert os.path.exists(doc_path)
+            assert doc_path.endswith(".docx")
+
+    def test_generates_pdf(self, tmp_path):
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            state = {
+                "session_id": "test-ppt-gen-pdf",
+                "approved_slides": _make_sample_slides(),
+                "processed_paper": _SAMPLE_PAPER,
+                "slide_contents": [],
+            }
+            result = ppt_generation_node(state)
+            ppt = result["generated_ppt"]
+            pdf_path = ppt.get("pdf_path")
+            assert pdf_path is not None
+            assert os.path.exists(pdf_path)
+            assert pdf_path.endswith(".pdf")
+            # PDF should have real content
+            assert os.path.getsize(pdf_path) > 2000
+
+    def test_all_three_outputs(self, tmp_path):
+        """Verify PPTX, DOCX, and PDF are all generated in one run."""
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            state = {
+                "session_id": "test-all-outputs",
+                "approved_slides": _make_sample_slides(),
+                "processed_paper": _SAMPLE_PAPER,
+                "slide_contents": [],
+            }
+            result = ppt_generation_node(state)
+            ppt = result["generated_ppt"]
+            assert os.path.exists(ppt["file_path"])
+            assert os.path.exists(ppt["doc_path"])
+            assert os.path.exists(ppt["pdf_path"])
 
     def test_falls_back_to_slide_contents(self, tmp_path):
         """If no approved_slides, should use slide_contents."""
@@ -153,3 +194,187 @@ class TestSlideHandlers:
         ]
         for stype in expected_types:
             assert stype in SLIDE_HANDLERS, f"Missing handler for slide type: {stype}"
+
+
+class TestWordDocument:
+    """Tests for professional Word document generation."""
+
+    def test_docx_created_and_valid(self, tmp_path):
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            doc_path = _generate_word_document("test-doc-1", _make_sample_slides(), _SAMPLE_PAPER)
+            assert os.path.exists(doc_path)
+            assert os.path.getsize(doc_path) > 5000
+
+    def test_docx_contains_title(self, tmp_path):
+        from docx import Document
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            doc_path = _generate_word_document("test-doc-title", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = Document(doc_path)
+            all_text = "\n".join(p.text for p in doc.paragraphs)
+            assert _SAMPLE_PAPER["title"] in all_text
+
+    def test_docx_contains_authors(self, tmp_path):
+        from docx import Document
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            doc_path = _generate_word_document("test-doc-authors", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = Document(doc_path)
+            all_text = "\n".join(p.text for p in doc.paragraphs)
+            assert "Alice Johnson" in all_text
+
+    def test_docx_contains_abstract(self, tmp_path):
+        from docx import Document
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            doc_path = _generate_word_document("test-doc-abstract", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = Document(doc_path)
+            all_text = "\n".join(p.text for p in doc.paragraphs)
+            assert "transformer-based methods" in all_text
+
+    def test_docx_has_toc(self, tmp_path):
+        from docx import Document
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            doc_path = _generate_word_document("test-doc-toc", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = Document(doc_path)
+            all_text = "\n".join(p.text for p in doc.paragraphs)
+            assert "Table of Contents" in all_text
+
+    def test_docx_has_section_numbers(self, tmp_path):
+        from docx import Document
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            doc_path = _generate_word_document("test-doc-sections", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = Document(doc_path)
+            headings = [p.text for p in doc.paragraphs if p.style.name.startswith("Heading")]
+            # Should have numbered headings like "1. Problem Statement"
+            numbered = [h for h in headings if h and h[0].isdigit()]
+            assert len(numbered) >= 3
+
+    def test_docx_has_discussion_sections(self, tmp_path):
+        from docx import Document
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            doc_path = _generate_word_document("test-doc-discussion", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = Document(doc_path)
+            headings = [p.text for p in doc.paragraphs if p.style.name.startswith("Heading")]
+            assert any("Key Points" in h for h in headings)
+            assert any("Discussion" in h for h in headings)
+
+    def test_docx_has_styled_fonts(self, tmp_path):
+        from docx import Document
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            doc_path = _generate_word_document("test-doc-fonts", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = Document(doc_path)
+            # Check that Normal style uses Calibri
+            normal = doc.styles['Normal']
+            assert normal.font.name == 'Calibri'
+
+    def test_docx_handles_empty_paper(self, tmp_path):
+        """Should not crash with minimal paper data."""
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            doc_path = _generate_word_document(
+                "test-doc-empty",
+                _make_sample_slides(),
+                {"title": "Minimal", "authors": [], "arxiv_id": "", "abstract": ""},
+            )
+            assert os.path.exists(doc_path)
+
+
+class TestPdfDocument:
+    """Tests for professional PDF generation."""
+
+    def test_pdf_created_and_valid(self, tmp_path):
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            pdf_path = _generate_pdf_document("test-pdf-1", _make_sample_slides(), _SAMPLE_PAPER)
+            assert os.path.exists(pdf_path)
+            assert pdf_path.endswith(".pdf")
+            assert os.path.getsize(pdf_path) > 2000
+
+    def test_pdf_is_valid_pdf_format(self, tmp_path):
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            pdf_path = _generate_pdf_document("test-pdf-format", _make_sample_slides(), _SAMPLE_PAPER)
+            # Valid PDF starts with %PDF
+            with open(pdf_path, "rb") as f:
+                header = f.read(5)
+            assert header == b"%PDF-"
+
+    def test_pdf_contains_title(self, tmp_path):
+        """PDF text should include the paper title."""
+        import fitz
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            pdf_path = _generate_pdf_document("test-pdf-title", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = fitz.open(pdf_path)
+            all_text = ""
+            for page in doc:
+                all_text += page.get_text()
+            doc.close()
+            assert "Novel Approach" in all_text
+
+    def test_pdf_contains_sections(self, tmp_path):
+        """PDF should have section headings from slides."""
+        import fitz
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            pdf_path = _generate_pdf_document("test-pdf-sections", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = fitz.open(pdf_path)
+            all_text = ""
+            for page in doc:
+                all_text += page.get_text()
+            doc.close()
+            assert "Problem Statement" in all_text
+            assert "Proposed Method" in all_text
+            assert "Experimental Results" in all_text
+
+    def test_pdf_contains_bullet_points(self, tmp_path):
+        import fitz
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            pdf_path = _generate_pdf_document("test-pdf-bullets", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = fitz.open(pdf_path)
+            all_text = ""
+            for page in doc:
+                all_text += page.get_text()
+            doc.close()
+            assert "95.2%" in all_text
+            assert "GLUE" in all_text
+
+    def test_pdf_has_multiple_pages(self, tmp_path):
+        import fitz
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            pdf_path = _generate_pdf_document("test-pdf-pages", _make_sample_slides(), _SAMPLE_PAPER)
+            doc = fitz.open(pdf_path)
+            # Title page + TOC + content = at least 3 pages
+            assert len(doc) >= 3
+            doc.close()
+
+    def test_pdf_handles_special_chars(self, tmp_path):
+        """PDF should handle <, >, & in text without crashing."""
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            slides = _make_sample_slides()
+            slides[1]["body_points"] = [
+                "Performance: accuracy > 95% & recall < 90%",
+                "Formula: loss = -log(p) where p > 0",
+            ]
+            pdf_path = _generate_pdf_document("test-pdf-special", slides, _SAMPLE_PAPER)
+            assert os.path.exists(pdf_path)
+            assert os.path.getsize(pdf_path) > 1000
+
+    def test_pdf_handles_empty_paper(self, tmp_path):
+        with patch("backend.agents.ppt_generation.settings") as mock_settings:
+            mock_settings.output_dir = str(tmp_path)
+            pdf_path = _generate_pdf_document(
+                "test-pdf-empty",
+                _make_sample_slides(),
+                {"title": "Minimal", "authors": [], "arxiv_id": "", "abstract": ""},
+            )
+            assert os.path.exists(pdf_path)

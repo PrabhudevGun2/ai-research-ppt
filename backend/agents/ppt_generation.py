@@ -249,103 +249,219 @@ SLIDE_HANDLERS = {
 
 
 def _generate_word_document(session_id: str, slides: list, paper: dict) -> str:
-    """Generate a detailed Word document companion to the PPT."""
+    """Generate a professional Word document companion to the PPT."""
     from docx import Document
-    from docx.shared import Pt as DocxPt, Inches as DocxInches, RGBColor as DocxRGB
+    from docx.shared import Pt as DocxPt, Inches as DocxInches, RGBColor as DocxRGB, Cm
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.oxml.ns import qn
 
     doc = Document()
 
-    # Style adjustments
-    style = doc.styles['Normal']
-    style.font.size = DocxPt(11)
-    style.font.name = 'Calibri'
+    # -- Page setup: narrower margins for professional look --------------------
+    for section in doc.sections:
+        section.top_margin = Cm(2.5)
+        section.bottom_margin = Cm(2.5)
+        section.left_margin = Cm(2.5)
+        section.right_margin = Cm(2.5)
 
-    # Title page
-    title_para = doc.add_heading(paper.get("title", "Research Paper Analysis"), level=0)
-    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # -- Restyle built-in styles -----------------------------------------------
+    style_normal = doc.styles['Normal']
+    style_normal.font.size = DocxPt(11)
+    style_normal.font.name = 'Calibri'
+    style_normal.paragraph_format.space_after = DocxPt(6)
+    style_normal.paragraph_format.line_spacing = 1.15
 
-    # Metadata
+    # Heading 1 – dark blue, bold, 18pt
+    h1 = doc.styles['Heading 1']
+    h1.font.size = DocxPt(18)
+    h1.font.bold = True
+    h1.font.color.rgb = DocxRGB(0x1A, 0x23, 0x7E)
+    h1.font.name = 'Calibri'
+    h1.paragraph_format.space_before = DocxPt(24)
+    h1.paragraph_format.space_after = DocxPt(8)
+
+    # Heading 2 – accent blue, 14pt
+    h2 = doc.styles['Heading 2']
+    h2.font.size = DocxPt(14)
+    h2.font.bold = True
+    h2.font.color.rgb = DocxRGB(0x19, 0x76, 0xD2)
+    h2.font.name = 'Calibri'
+    h2.paragraph_format.space_before = DocxPt(16)
+    h2.paragraph_format.space_after = DocxPt(6)
+
+    title_text = paper.get("title", "Research Paper Analysis")
     authors = paper.get("authors", [])
-    if authors:
-        meta = doc.add_paragraph()
-        meta.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = meta.add_run(f"Authors: {', '.join(authors[:10])}")
-        run.font.size = DocxPt(12)
-        run.font.color.rgb = DocxRGB(0x55, 0x55, 0x55)
-
     arxiv_id = paper.get("arxiv_id", "")
-    if arxiv_id:
-        meta2 = doc.add_paragraph()
-        meta2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = meta2.add_run(f"ArXiv: {arxiv_id} | Generated: {date.today().strftime('%B %d, %Y')}")
-        run.font.size = DocxPt(10)
-        run.font.color.rgb = DocxRGB(0x88, 0x88, 0x88)
-
-    doc.add_page_break()
-
-    # Table of contents header
-    doc.add_heading("Table of Contents", level=1)
-    for i, slide in enumerate(slides):
-        if slide.get("slide_type") == "title":
-            continue
-        toc_para = doc.add_paragraph(f"{i}. {slide.get('title', f'Section {i}')}")
-        toc_para.style = doc.styles['List Number']
-
-    doc.add_page_break()
-
-    # Abstract
     abstract = paper.get("abstract", "")
-    if abstract:
-        doc.add_heading("Abstract", level=1)
-        doc.add_paragraph(abstract)
+
+    # ====== TITLE PAGE ========================================================
+    # Add vertical spacing to push title down
+    for _ in range(6):
         doc.add_paragraph()
 
-    # Each slide becomes a detailed section
+    # Thin accent line above title
+    line_para = doc.add_paragraph()
+    line_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = line_para.add_run("━" * 50)
+    run.font.color.rgb = DocxRGB(0x19, 0x76, 0xD2)
+    run.font.size = DocxPt(10)
+
+    # Title
+    tp = doc.add_paragraph()
+    tp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    tr = tp.add_run(title_text)
+    tr.font.size = DocxPt(28)
+    tr.bold = True
+    tr.font.color.rgb = DocxRGB(0x1A, 0x23, 0x7E)
+    tr.font.name = 'Calibri'
+
+    # Subtitle: "Research Paper Analysis"
+    sp = doc.add_paragraph()
+    sp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sr = sp.add_run("Research Paper Analysis")
+    sr.font.size = DocxPt(14)
+    sr.font.color.rgb = DocxRGB(0x75, 0x75, 0x75)
+    sr.font.italic = True
+
+    # Thin accent line below subtitle
+    line_para2 = doc.add_paragraph()
+    line_para2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run2 = line_para2.add_run("━" * 50)
+    run2.font.color.rgb = DocxRGB(0x19, 0x76, 0xD2)
+    run2.font.size = DocxPt(10)
+
+    doc.add_paragraph()  # spacing
+
+    # Authors
+    if authors:
+        ap = doc.add_paragraph()
+        ap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        ar = ap.add_run(', '.join(authors[:10]))
+        ar.font.size = DocxPt(12)
+        ar.font.color.rgb = DocxRGB(0x44, 0x44, 0x44)
+
+    # Metadata line
+    meta_parts = []
+    if arxiv_id:
+        meta_parts.append(f"ArXiv: {arxiv_id}")
+    meta_parts.append(f"Generated: {date.today().strftime('%B %d, %Y')}")
+    mp = doc.add_paragraph()
+    mp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    mr = mp.add_run(" | ".join(meta_parts))
+    mr.font.size = DocxPt(10)
+    mr.font.color.rgb = DocxRGB(0x99, 0x99, 0x99)
+
+    doc.add_page_break()
+
+    # ====== TABLE OF CONTENTS =================================================
+    doc.add_heading("Table of Contents", level=1)
+    section_num = 0
+    for slide in slides:
+        if slide.get("slide_type") == "title":
+            continue
+        section_num += 1
+        toc_para = doc.add_paragraph()
+        toc_para.paragraph_format.space_after = DocxPt(3)
+        num_run = toc_para.add_run(f"{section_num}. ")
+        num_run.font.bold = True
+        num_run.font.color.rgb = DocxRGB(0x19, 0x76, 0xD2)
+        title_run = toc_para.add_run(slide.get('title', f'Section {section_num}'))
+        title_run.font.size = DocxPt(11)
+
+    doc.add_page_break()
+
+    # ====== ABSTRACT ==========================================================
+    if abstract:
+        doc.add_heading("Abstract", level=1)
+        abs_para = doc.add_paragraph()
+        abs_para.paragraph_format.first_line_indent = Cm(1)
+        abs_para.paragraph_format.space_after = DocxPt(12)
+        abs_run = abs_para.add_run(abstract)
+        abs_run.font.size = DocxPt(11)
+        abs_run.font.color.rgb = DocxRGB(0x33, 0x33, 0x33)
+        doc.add_paragraph()
+
+    # ====== SECTIONS FROM SLIDES ==============================================
+    section_num = 0
     for slide in slides:
         if slide.get("slide_type") == "title":
             continue
 
+        section_num += 1
         slide_title = slide.get("title", "Section")
-        doc.add_heading(slide_title, level=1)
+        slide_type = slide.get("slide_type", "content")
 
+        # Section heading
+        doc.add_heading(f"{section_num}. {slide_title}", level=1)
+
+        # Subtitle as a styled intro
         subtitle = slide.get("subtitle")
         if subtitle:
             sub_para = doc.add_paragraph()
-            run = sub_para.add_run(subtitle)
-            run.font.italic = True
-            run.font.color.rgb = DocxRGB(0x44, 0x44, 0x44)
+            sub_run = sub_para.add_run(subtitle)
+            sub_run.font.italic = True
+            sub_run.font.size = DocxPt(11)
+            sub_run.font.color.rgb = DocxRGB(0x55, 0x55, 0x55)
 
-        # Body points as detailed paragraphs
+        # Key points subheading
         body_points = slide.get("body_points", [])
-        for point in body_points:
-            p = doc.add_paragraph(point, style='List Bullet')
+        if body_points:
+            doc.add_heading("Key Points", level=2)
+            for point in body_points:
+                bp = doc.add_paragraph(style='List Bullet')
+                bp_run = bp.add_run(point)
+                bp_run.font.size = DocxPt(11)
+                bp.paragraph_format.space_after = DocxPt(4)
 
-        # Speaker notes as detailed prose
+        # Speaker notes as detailed discussion
         notes = slide.get("speaker_notes")
         if notes:
-            doc.add_paragraph()
-            notes_heading = doc.add_paragraph()
-            run = notes_heading.add_run("Detailed Notes:")
-            run.bold = True
-            run.font.size = DocxPt(11)
-            doc.add_paragraph(notes)
+            doc.add_heading("Discussion", level=2)
+            np = doc.add_paragraph()
+            np.paragraph_format.first_line_indent = Cm(0.5)
+            nr = np.add_run(notes)
+            nr.font.size = DocxPt(11)
+            nr.font.color.rgb = DocxRGB(0x33, 0x33, 0x33)
 
-        # Add image if available
+        # Add image with professional framing
         image_path = slide.get("image_path")
         if image_path and os.path.exists(image_path):
             try:
-                doc.add_picture(image_path, width=DocxInches(5.5))
+                doc.add_paragraph()  # spacing
+                pic_para = doc.add_paragraph()
+                pic_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                doc.add_picture(image_path, width=DocxInches(5.0))
+                # Caption
                 caption = slide.get("image_caption", "")
                 if caption:
-                    cap_para = doc.add_paragraph(caption)
+                    cap_para = doc.add_paragraph()
                     cap_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    cap_para.runs[0].font.italic = True
-                    cap_para.runs[0].font.size = DocxPt(9)
+                    cap_para.paragraph_format.space_before = DocxPt(4)
+                    cap_run = cap_para.add_run(caption[:200])
+                    cap_run.font.italic = True
+                    cap_run.font.size = DocxPt(9)
+                    cap_run.font.color.rgb = DocxRGB(0x66, 0x66, 0x66)
             except Exception as e:
                 logger.warning(f"Failed to add image to doc: {e}")
 
-        doc.add_paragraph()  # spacing
+        # Thin separator between sections
+        sep = doc.add_paragraph()
+        sep.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        sep.paragraph_format.space_before = DocxPt(12)
+        sep.paragraph_format.space_after = DocxPt(6)
+        sep_run = sep.add_run("—" * 30)
+        sep_run.font.color.rgb = DocxRGB(0xDD, 0xDD, 0xDD)
+        sep_run.font.size = DocxPt(8)
+
+    # ====== FOOTER ON LAST PAGE ===============================================
+    doc.add_paragraph()
+    footer_para = doc.add_paragraph()
+    footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    fr = footer_para.add_run("Generated by AI Research PPT Generator")
+    fr.font.size = DocxPt(9)
+    fr.font.color.rgb = DocxRGB(0xAA, 0xAA, 0xAA)
+    fr.font.italic = True
 
     # Save
     doc_path = os.path.join(settings.output_dir, f"{session_id}.docx")
@@ -354,8 +470,243 @@ def _generate_word_document(session_id: str, slides: list, paper: dict) -> str:
     return doc_path
 
 
+def _sanitize_for_pdf(text: str) -> str:
+    """Convert Unicode math/special characters to ASCII-safe equivalents for reportlab."""
+    if not text:
+        return text
+    replacements = {
+        # Math operators
+        "√": "sqrt", "∛": "cbrt", "∑": "sum", "∏": "prod",
+        "∫": "integral", "∂": "d", "∇": "nabla", "∆": "delta",
+        "∞": "inf", "≈": "~=", "≠": "!=", "≤": "<=", "≥": ">=",
+        "±": "+/-", "×": "x", "÷": "/", "·": "*",
+        "∈": "in", "∉": "not in", "⊂": "subset", "⊆": "subset=",
+        "∩": "intersect", "∪": "union", "∅": "{}",
+        # Superscripts
+        "⁰": "^0", "¹": "^1", "²": "^2", "³": "^3", "⁴": "^4",
+        "⁵": "^5", "⁶": "^6", "⁷": "^7", "⁸": "^8", "⁹": "^9",
+        "ⁿ": "^n", "ᵀ": "^T", "ᵃ": "^a", "ᵇ": "^b", "ᶜ": "^c",
+        # Subscripts
+        "₀": "_0", "₁": "_1", "₂": "_2", "₃": "_3", "₄": "_4",
+        "₅": "_5", "₆": "_6", "₇": "_7", "₈": "_8", "₉": "_9",
+        "ₐ": "_a", "ₑ": "_e", "ₒ": "_o", "ₙ": "_n", "ₖ": "_k",
+        "ᵢ": "_i", "ⱼ": "_j", "ᵥ": "_v", "ₓ": "_x",
+        # Greek letters (common in ML papers)
+        "α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta",
+        "ε": "epsilon", "ζ": "zeta", "η": "eta", "θ": "theta",
+        "λ": "lambda", "μ": "mu", "ν": "nu", "ξ": "xi",
+        "π": "pi", "ρ": "rho", "σ": "sigma", "τ": "tau",
+        "φ": "phi", "ψ": "psi", "ω": "omega",
+        "Γ": "Gamma", "Δ": "Delta", "Θ": "Theta", "Λ": "Lambda",
+        "Σ": "Sigma", "Φ": "Phi", "Ψ": "Psi", "Ω": "Omega",
+        # Arrows
+        "→": "->", "←": "<-", "↔": "<->", "⇒": "=>", "⇐": "<=",
+        "↑": "^", "↓": "v",
+        # Quotes and dashes
+        "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+        "\u2013": "-", "\u2014": "--", "\u2026": "...",
+        # Other
+        "\u00b7": "*", "\u2022": "*",
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+    # Final pass: replace any remaining non-ASCII with '?'
+    return text.encode("ascii", errors="replace").decode("ascii")
+
+
+def _generate_pdf_document(session_id: str, slides: list, paper: dict) -> str:
+    """Generate a professional PDF report from the slide content."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.units import cm, mm
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Image as RLImage,
+        PageBreak, Table, TableStyle, HRFlowable,
+    )
+    from reportlab.lib import colors
+    from PIL import Image as PILImage
+
+    pdf_path = os.path.join(settings.output_dir, f"{session_id}.pdf")
+
+    # Colors
+    NAVY = HexColor("#1A237E")
+    ACCENT = HexColor("#1976D2")
+    DARK_TEXT = HexColor("#212121")
+    GRAY_TEXT = HexColor("#757575")
+    LIGHT_LINE = HexColor("#E0E0E0")
+
+    doc = SimpleDocTemplate(
+        pdf_path,
+        pagesize=A4,
+        topMargin=2.5 * cm,
+        bottomMargin=2.5 * cm,
+        leftMargin=2.5 * cm,
+        rightMargin=2.5 * cm,
+    )
+
+    width = A4[0] - 5 * cm  # available text width
+
+    styles = getSampleStyleSheet()
+
+    # Custom styles
+    styles.add(ParagraphStyle(
+        'DocTitle', parent=styles['Title'],
+        fontSize=26, leading=32, textColor=NAVY,
+        alignment=TA_CENTER, spaceAfter=10,
+        fontName='Helvetica-Bold',
+    ))
+    styles.add(ParagraphStyle(
+        'DocSubtitle', parent=styles['Normal'],
+        fontSize=13, leading=18, textColor=GRAY_TEXT,
+        alignment=TA_CENTER, spaceAfter=6,
+        fontName='Helvetica-Oblique',
+    ))
+    styles.add(ParagraphStyle(
+        'DocMeta', parent=styles['Normal'],
+        fontSize=10, leading=14, textColor=GRAY_TEXT,
+        alignment=TA_CENTER, spaceAfter=4,
+    ))
+    styles.add(ParagraphStyle(
+        'SectionHead', parent=styles['Heading1'],
+        fontSize=16, leading=22, textColor=NAVY,
+        spaceBefore=20, spaceAfter=8,
+        fontName='Helvetica-Bold',
+    ))
+    styles.add(ParagraphStyle(
+        'SubHead', parent=styles['Heading2'],
+        fontSize=12, leading=16, textColor=ACCENT,
+        spaceBefore=12, spaceAfter=4,
+        fontName='Helvetica-Bold',
+    ))
+    styles.add(ParagraphStyle(
+        'Body', parent=styles['Normal'],
+        fontSize=10.5, leading=15, textColor=DARK_TEXT,
+        alignment=TA_JUSTIFY, spaceAfter=6,
+        fontName='Helvetica',
+    ))
+    styles.add(ParagraphStyle(
+        'BulletText', parent=styles['Normal'],
+        fontSize=10.5, leading=15, textColor=DARK_TEXT,
+        leftIndent=20, spaceAfter=4,
+        fontName='Helvetica',
+        bulletIndent=8,
+    ))
+    styles.add(ParagraphStyle(
+        'Caption', parent=styles['Normal'],
+        fontSize=9, leading=12, textColor=GRAY_TEXT,
+        alignment=TA_CENTER, spaceAfter=10,
+        fontName='Helvetica-Oblique',
+    ))
+    styles.add(ParagraphStyle(
+        'Footer', parent=styles['Normal'],
+        fontSize=8, textColor=GRAY_TEXT,
+        alignment=TA_CENTER,
+    ))
+
+    story = []
+
+    title_text = paper.get("title", "Research Paper Analysis")
+    authors = paper.get("authors", [])
+    arxiv_id = paper.get("arxiv_id", "")
+    abstract = paper.get("abstract", "")
+
+    # ====== TITLE PAGE ========================================================
+    story.append(Spacer(1, 6 * cm))
+    story.append(HRFlowable(width="60%", color=ACCENT, thickness=2, spaceAfter=15))
+    story.append(Paragraph(_sanitize_for_pdf(title_text), styles['DocTitle']))
+    story.append(Paragraph("Research Paper Analysis", styles['DocSubtitle']))
+    story.append(HRFlowable(width="60%", color=ACCENT, thickness=2, spaceBefore=15, spaceAfter=20))
+    if authors:
+        story.append(Paragraph(_sanitize_for_pdf(', '.join(authors[:10])), styles['DocMeta']))
+    meta_parts = []
+    if arxiv_id:
+        meta_parts.append(f"ArXiv: {arxiv_id}")
+    meta_parts.append(f"Generated: {date.today().strftime('%B %d, %Y')}")
+    story.append(Paragraph(" | ".join(meta_parts), styles['DocMeta']))
+    story.append(PageBreak())
+
+    # ====== TABLE OF CONTENTS =================================================
+    story.append(Paragraph("Table of Contents", styles['SectionHead']))
+    story.append(Spacer(1, 8))
+    section_num = 0
+    for slide in slides:
+        if slide.get("slide_type") == "title":
+            continue
+        section_num += 1
+        toc_text = f'<font color="#1976D2"><b>{section_num}.</b></font>  {_sanitize_for_pdf(slide.get("title", "Section"))}'
+        story.append(Paragraph(toc_text, styles['Body']))
+    story.append(PageBreak())
+
+    # ====== ABSTRACT ==========================================================
+    if abstract:
+        story.append(Paragraph("Abstract", styles['SectionHead']))
+        story.append(Paragraph(_sanitize_for_pdf(abstract), styles['Body']))
+        story.append(Spacer(1, 12))
+
+    # ====== SECTIONS ==========================================================
+    section_num = 0
+    for slide in slides:
+        if slide.get("slide_type") == "title":
+            continue
+
+        section_num += 1
+        slide_title = slide.get("title", "Section")
+
+        story.append(Paragraph(_sanitize_for_pdf(f"{section_num}. {slide_title}"), styles['SectionHead']))
+
+        subtitle = slide.get("subtitle")
+        if subtitle:
+            story.append(Paragraph(f"<i>{_sanitize_for_pdf(subtitle)}</i>", styles['DocSubtitle']))
+
+        body_points = slide.get("body_points", [])
+        if body_points:
+            story.append(Paragraph("Key Points", styles['SubHead']))
+            for point in body_points:
+                safe_point = _sanitize_for_pdf(point).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                story.append(Paragraph(f"•  {safe_point}", styles['BulletText']))
+
+        notes = slide.get("speaker_notes")
+        if notes:
+            story.append(Paragraph("Discussion", styles['SubHead']))
+            safe_notes = _sanitize_for_pdf(notes).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            story.append(Paragraph(safe_notes, styles['Body']))
+
+        # Image
+        image_path = slide.get("image_path")
+        if image_path and os.path.exists(image_path):
+            try:
+                with PILImage.open(image_path) as pil_img:
+                    iw, ih = pil_img.size
+                max_w = width * 0.85
+                max_h = 12 * cm
+                scale = min(max_w / iw, max_h / ih, 1.0)
+                story.append(Spacer(1, 8))
+                story.append(RLImage(image_path, width=iw * scale, height=ih * scale))
+                caption = slide.get("image_caption", "")
+                if caption:
+                    safe_cap = _sanitize_for_pdf(caption[:200]).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                    story.append(Paragraph(safe_cap, styles['Caption']))
+            except Exception as e:
+                logger.warning(f"Failed to add image to PDF: {e}")
+
+        # Section separator
+        story.append(Spacer(1, 8))
+        story.append(HRFlowable(width="40%", color=LIGHT_LINE, thickness=0.5, spaceAfter=6))
+
+    # Footer
+    story.append(Spacer(1, 20))
+    story.append(Paragraph("Generated by AI Research PPT Generator", styles['Footer']))
+
+    # Build PDF
+    doc.build(story)
+    logger.info(f"[{session_id}] PDF document saved to {pdf_path}")
+    return pdf_path
+
+
 def ppt_generation_node(state: ResearchState) -> dict:
-    """Generate comprehensive PPT and Word document from approved slides."""
+    """Generate comprehensive PPT, Word document, and PDF from approved slides."""
     session_id = state["session_id"]
     approved_slides = state.get("approved_slides") or state.get("slide_contents", [])
     logger.info(f"[{session_id}] Generating PPT with {len(approved_slides)} slides")
@@ -386,11 +737,19 @@ def ppt_generation_node(state: ResearchState) -> dict:
     except Exception as e:
         logger.warning(f"[{session_id}] Word document generation failed: {e}")
 
+    # Generate companion PDF document
+    pdf_path = None
+    try:
+        pdf_path = _generate_pdf_document(session_id, approved_slides, paper)
+    except Exception as e:
+        logger.warning(f"[{session_id}] PDF document generation failed: {e}")
+
     title = paper.get("title", "AI Research Presentation")
 
     generated_ppt: GeneratedPPT = {
         "file_path": file_path,
         "doc_path": doc_path,
+        "pdf_path": pdf_path,
         "session_id": session_id,
         "slide_count": len(approved_slides),
         "topics_covered": [title[:100]],
@@ -399,7 +758,7 @@ def ppt_generation_node(state: ResearchState) -> dict:
 
     logger.info(f"[{session_id}] PPT saved to {file_path} with {len(approved_slides)} slides")
 
-    # Clean up extracted assets (PDFs, images) - they're now embedded in pptx/docx
+    # Clean up extracted assets (PDFs, images) - they're now embedded in pptx/docx/pdf
     assets_dir = os.path.join(settings.output_dir, session_id, "assets")
     if os.path.isdir(assets_dir):
         import shutil

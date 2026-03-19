@@ -103,8 +103,26 @@ def render():
         key="query_text_input",
     )
 
+    # -- Audience selector ------------------------------------------------------
+    st.subheader("4. Who is this presentation for?")
+
+    AUDIENCE_OPTIONS = {
+        "Executive / Manager — Big picture, business impact, no jargon": "executive",
+        "Student / Fresher — Concepts explained simply, learn as you read": "fresher",
+        "AI Engineer — Technical details, hyperparameters, practical focus": "engineer",
+        "Researcher — Full depth, equations, ablations, academic rigor": "researcher",
+    }
+
+    audience_display = st.radio(
+        "Target audience",
+        options=list(AUDIENCE_OPTIONS.keys()),
+        index=2,  # default: AI Engineer
+        help="Controls the language, depth, and style of the generated content.",
+    )
+    selected_audience = AUDIENCE_OPTIONS[audience_display]
+
     # -- Model selector ---------------------------------------------------------
-    st.subheader("4. Choose Model")
+    st.subheader("5. Choose Model")
     model_display = st.selectbox(
         "LLM model (via OpenRouter)",
         options=list(OPENROUTER_MODELS.keys()),
@@ -115,7 +133,7 @@ def render():
     st.caption(f"Model ID: `{selected_model_id}`")
 
     # -- Launch -----------------------------------------------------------------
-    st.subheader("5. Start")
+    st.subheader("6. Start")
     col1, col2 = st.columns([1, 3])
     with col1:
         start_clicked = st.button("Start", type="primary", use_container_width=True)
@@ -133,6 +151,7 @@ def render():
                         arxiv_url=arxiv_url.strip(),
                         model=selected_model_id,
                         api_key=api_key,
+                        audience=selected_audience,
                     )
                     set_session("session_id", result["session_id"])
                     set_session("arxiv_url", arxiv_url.strip())
@@ -148,6 +167,7 @@ def render():
                         user_query=user_query.strip(),
                         model=selected_model_id,
                         api_key=api_key,
+                        audience=selected_audience,
                     )
                     set_session("session_id", result["session_id"])
                     set_session("user_query", user_query.strip())

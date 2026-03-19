@@ -15,6 +15,109 @@ logger = logging.getLogger(__name__)
 # Target number of slides
 TARGET_SLIDES = 15
 
+# Audience personas
+AUDIENCE_PROFILES = {
+    "executive": {
+        "role": "Executive / Manager — Non-technical business leaders who need the big picture",
+        "tone": (
+            "AUDIENCE RULES:\n"
+            "- NO math formulas, NO code, NO Greek letters, NO variable names\n"
+            "- Translate every technical concept into a business analogy or plain English\n"
+            "- Focus on: What problem is solved? What's the impact? Why does it matter?\n"
+            "- Use concrete outcomes: 'cuts processing time in half' not 'O(n) vs O(n^2)'\n"
+            "- Speaker notes should explain concepts as if presenting to a CEO\n"
+            "- Frame results as ROI, competitive advantage, or strategic opportunity"
+        ),
+        "focus": "FOCUS on problem/impact (40%), results/outcomes (40%), methodology at a high level (20%). Skip ablation details.",
+        "language": "Use plain English only. If a technical term is unavoidable, define it in parentheses — e.g., 'attention mechanism (a way for AI to focus on relevant parts of text)'.",
+        "methodology_guidance": "2-3 slides explaining the approach using analogies and plain language. NO formulas. USE FIGURES — they tell the story visually.",
+        "results_guidance": "3-4 slides focused on outcomes and impact. Use comparisons like 'X% better than existing methods'. USE TABLES for clear before/after comparisons.",
+        "examples": (
+            "BULLET POINT EXAMPLES for this audience:\n"
+            "- GOOD: 'New method translates languages 10x faster than previous best'\n"
+            "- BAD: 'Achieves 28.4 BLEU on WMT 2014 EN-DE benchmark'\n"
+            "- GOOD: 'AI learns what to pay attention to in text, like a human skimming a document'\n"
+            "- BAD: 'Multi-head self-attention computes Q, K, V projections across h parallel heads'\n"
+            "- GOOD: 'Trained in 3.5 days on standard hardware — previously took months'\n"
+            "- BAD: 'Training on 8x P100 GPUs for 300K steps with 0.1 dropout'"
+        ),
+    },
+    "fresher": {
+        "role": "AI/ML Student or Fresher — Early-career engineers learning the field",
+        "tone": (
+            "AUDIENCE RULES:\n"
+            "- ALWAYS explain WHY before WHAT — give intuition before details\n"
+            "- Define every acronym and technical term on first use\n"
+            "- Use 'Think of it like...' analogies for complex concepts\n"
+            "- Math formulas are OK but MUST be preceded by a plain-English explanation\n"
+            "- Speaker notes should teach the concept, not just describe it\n"
+            "- Connect ideas to things freshers already know (basic ML, Python, etc.)"
+        ),
+        "focus": "FOCUS on building understanding: problem (20%), methodology explained step-by-step (50%), results with context (20%), takeaways (10%).",
+        "language": "Explain jargon on first use. Example: 'self-attention (the model decides which words in a sentence are most relevant to each other)'. Use analogies freely.",
+        "methodology_guidance": "3-5 slides that teach the method step by step. Explain each component with intuition FIRST, then specifics. USE FIGURES to show architecture visually.",
+        "results_guidance": "2-3 slides. Explain what the metrics mean before showing numbers. E.g., 'BLEU score measures translation quality (higher = better)' then show the result.",
+        "examples": (
+            "BULLET POINT EXAMPLES for this audience:\n"
+            "- GOOD: 'Self-attention: each word \"looks at\" every other word to understand context'\n"
+            "- BAD: 'Attention(Q,K,V) = softmax(QK^T/sqrt(d_k))V'\n"
+            "- GOOD: 'BLEU score (translation quality metric, higher = better): 28.4 — best ever at the time'\n"
+            "- BAD: '28.4 BLEU on WMT 2014 EN-DE, +2.0 over previous SOTA'\n"
+            "- GOOD: 'Think of attention like highlighting — the model highlights important words automatically'\n"
+            "- BAD: 'Multi-head attention projects into h subspaces with d_k dimensionality'"
+        ),
+    },
+    "engineer": {
+        "role": "AI/ML Engineer — Practitioners who build and deploy models",
+        "tone": (
+            "AUDIENCE RULES:\n"
+            "- Be technical and specific — engineers want implementation details\n"
+            "- Include exact hyperparameters, architecture choices, training details\n"
+            "- Focus on: What can I use? How does it work? What are the tradeoffs?\n"
+            "- Formulas OK but emphasize practical implications over theory\n"
+            "- Speaker notes should cover practical considerations and gotchas"
+        ),
+        "focus": "FOCUS on methodology and architecture (40%), results and comparisons (30%), practical takeaways (20%), limitations (10%).",
+        "language": "Technical language is fine. Be specific with numbers, names, metrics. No need to define standard ML terms.",
+        "methodology_guidance": "3-5 slides covering architecture, key techniques, training setup with exact hyperparameters. USE FIGURES HERE.",
+        "results_guidance": "3-5 slides with quantitative results, benchmark comparisons, and exact numbers. USE TABLES HERE.",
+        "examples": (
+            "BULLET POINT EXAMPLES for this audience:\n"
+            "- GOOD: 'Transformer achieves 28.4 BLEU on EN-DE, +2.0 over previous SOTA'\n"
+            "- BAD: 'The proposed architecture demonstrates significant improvements in translation'\n"
+            "- GOOD: '8 attention heads, d_model=512, d_ff=2048, dropout=0.1'\n"
+            "- BAD: 'The model uses several attention heads with a certain dimensionality'"
+        ),
+    },
+    "researcher": {
+        "role": "AI Researcher — Academics and research scientists",
+        "tone": (
+            "AUDIENCE RULES:\n"
+            "- Full technical depth — equations, proofs, ablation analysis\n"
+            "- Position this work relative to prior art and concurrent work\n"
+            "- Highlight novel contributions vs incremental improvements\n"
+            "- Speaker notes should discuss implications for future research\n"
+            "- Be precise about experimental setup and statistical significance"
+        ),
+        "focus": "FOCUS on novelty and contributions (20%), methodology in full depth (40%), experimental rigor (30%), open questions (10%).",
+        "language": "Full academic language. Include mathematical formulations. Reference specific prior work by name.",
+        "methodology_guidance": "3-5 slides with full technical detail: architecture, loss functions, optimization, theoretical justification. USE FIGURES HERE.",
+        "results_guidance": "3-5 slides: quantitative comparisons with SOTA, ablation studies, statistical analysis. USE TABLES HERE. Include exact numbers and confidence intervals if available.",
+        "examples": (
+            "BULLET POINT EXAMPLES for this audience:\n"
+            "- GOOD: 'Attention(Q,K,V) = softmax(QK^T/sqrt(d_k))V — dot-product scales better than additive (Bahdanau 2015)'\n"
+            "- BAD: 'Uses a type of attention mechanism'\n"
+            "- GOOD: 'Ablation: single-head attention drops 0.9 BLEU; h=16 with d_k=32 also degrades'\n"
+            "- BAD: 'Different configurations were tested'"
+        ),
+    },
+}
+
+
+def _get_audience_instructions(audience: str) -> dict:
+    """Return audience-specific prompt instructions."""
+    return AUDIENCE_PROFILES.get(audience, AUDIENCE_PROFILES["engineer"])
+
 
 def slide_synthesis_node(state: ResearchState) -> dict:
     """
@@ -67,7 +170,14 @@ ABSTRACT:
     n_figures = len(figures)
     n_tables = len(tables)
 
-    prompt = f"""You are an expert AI researcher creating a CONCISE, VISUAL slide deck.
+    audience = state.get("audience", "engineer")
+    audience_instructions = _get_audience_instructions(audience)
+
+    prompt = f"""You are creating a CONCISE, VISUAL slide deck for the following audience:
+
+TARGET AUDIENCE: {audience_instructions['role']}
+
+{audience_instructions['tone']}
 
 PAPER CONTENT:
 {paper_content}
@@ -75,10 +185,10 @@ PAPER CONTENT:
 CRITICAL RULES - READ CAREFULLY:
 1. Keep bullet points SHORT: 10-20 words max per bullet. No walls of text.
 2. Use 3-5 bullet points per slide, not more.
-3. FOCUS on methodology and results - these should get 60%+ of slides.
+3. {audience_instructions['focus']}
 4. Every figure and table from the paper MUST appear on a slide.
 5. Speaker notes carry the detailed explanation (100-200 words).
-6. Avoid generic filler - be specific with numbers, names, metrics.
+6. {audience_instructions['language']}
 
 AVAILABLE VISUALS: {n_figures} figures, {n_tables} tables.
 You MUST use ALL of them. Assign each to a slide via "recommended_figure".
@@ -88,8 +198,8 @@ SLIDE STRUCTURE (exactly {TARGET_SLIDES} slides):
 1. **Title** - Paper title, authors, date, arxiv link (1 slide)
 2. **Problem & Motivation** - What problem, why it matters (1 slide)
 3. **Key Contributions** - 3-5 main contributions as short bullets (1 slide)
-4. **Methodology** - 3-5 slides covering the approach, architecture, key techniques. USE FIGURES HERE.
-5. **Results & Comparisons** - 3-5 slides with quantitative results. USE TABLES HERE. Include exact numbers.
+4. **Methodology** - {audience_instructions['methodology_guidance']}
+5. **Results & Comparisons** - {audience_instructions['results_guidance']}
 6. **Analysis / Ablation** - What works, what doesn't (1-2 slides)
 7. **Limitations & Future Work** - Honest assessment + next steps (1 slide)
 8. **Conclusion** - Key takeaways (1 slide)
@@ -109,11 +219,7 @@ FOR EACH SLIDE, return JSON:
   "recommended_figure": "Figure X" or "Table Y" or null
 }}
 
-BULLET POINT EXAMPLES (good vs bad):
-- GOOD: "Transformer achieves 28.4 BLEU on EN-DE, +2.0 over previous SOTA"
-- BAD: "The proposed transformer-based architecture demonstrates significant improvements in machine translation quality as measured by BLEU scores when compared against the previous state-of-the-art methods"
-- GOOD: "LangGraph: 94% task completion via explicit state management"
-- BAD: "The LangGraph framework achieved a task completion rate of 94% which can be attributed to its explicit state management approach that provides structured workflows"
+{audience_instructions['examples']}
 
 IMAGE ASSIGNMENT RULES:
 - You have {n_figures} figures and {n_tables} tables available

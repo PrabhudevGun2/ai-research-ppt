@@ -19,7 +19,8 @@ TIMEOUT = 30
 
 
 def create_session(user_query: Optional[str] = None, arxiv_url: Optional[str] = None,
-                   model: Optional[str] = None, api_key: Optional[str] = None) -> dict:
+                   model: Optional[str] = None, api_key: Optional[str] = None,
+                   audience: Optional[str] = None) -> dict:
     """Create a new research session.
 
     Either user_query OR arxiv_url must be provided.
@@ -37,6 +38,8 @@ def create_session(user_query: Optional[str] = None, arxiv_url: Optional[str] = 
         payload["model"] = model
     if api_key:
         payload["api_key"] = api_key
+    if audience:
+        payload["audience"] = audience
 
     resp = requests.post(f"{API_BASE}/sessions", json=payload, timeout=TIMEOUT)
     resp.raise_for_status()
@@ -69,6 +72,13 @@ def download_ppt(session_id: str) -> bytes:
 def download_doc(session_id: str) -> bytes:
     """Download the generated .docx file as bytes."""
     resp = requests.get(f"{API_BASE}/sessions/{session_id}/doc/download", timeout=60)
+    resp.raise_for_status()
+    return resp.content
+
+
+def download_pdf(session_id: str) -> bytes:
+    """Download the generated .pdf file as bytes."""
+    resp = requests.get(f"{API_BASE}/sessions/{session_id}/pdf/download", timeout=60)
     resp.raise_for_status()
     return resp.content
 
