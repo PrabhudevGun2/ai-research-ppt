@@ -5,11 +5,8 @@ import type {
   ResumeRequest,
 } from './types';
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, '') ||
-  'http://localhost:8000';
-
-const API_BASE = `${BASE_URL}/api/v1`;
+// All calls go through the Next.js proxy route → no CORS, no build-time env var needed
+const API_BASE = '/api/proxy';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
