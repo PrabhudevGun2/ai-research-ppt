@@ -24,15 +24,15 @@ services:
         value: INFO
     healthCheckPath: /api/v1/health
 
-  # --- Frontend (Streamlit) ---
+  # --- Frontend (Next.js) ---
   - type: web
     name: ai-ppt-frontend
     runtime: docker
-    dockerfilePath: ./docker/Dockerfile.frontend
-    dockerContext: .
+    dockerfilePath: ./frontend-next/Dockerfile
+    dockerContext: ./frontend-next
     plan: free
     envVars:
-      - key: BACKEND_URL
+      - key: NEXT_PUBLIC_BACKEND_URL
         value: https://ai-ppt-backend-u6fo.onrender.com
 
   # --- Redis ---
