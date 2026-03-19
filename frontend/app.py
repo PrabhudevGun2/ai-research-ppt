@@ -13,7 +13,26 @@ st.set_page_config(
 
 init_session()
 
-# Sidebar
+# --- Wake backend before rendering anything -----------------------------------
+if "backend_ready" not in st.session_state:
+    st.session_state.backend_ready = False
+
+if not st.session_state.backend_ready:
+    if not health_check(timeout=8):
+        st.title("AI Research PPT Generator")
+        st.info("Backend is starting up (Render free tier cold start). Please wait...")
+        with st.spinner("Waking up backend — this takes up to 60 seconds..."):
+            ok = wake_backend()
+        if ok:
+            st.session_state.backend_ready = True
+            st.rerun()
+        else:
+            st.error("Backend did not respond. Please refresh the page in 30 seconds.")
+            st.stop()
+    else:
+        st.session_state.backend_ready = True
+
+# --- Sidebar ------------------------------------------------------------------
 with st.sidebar:
     st.title("AI Research PPT")
     st.caption("Paper to Presentation")
@@ -27,18 +46,7 @@ with st.sidebar:
         st.metric("Stage", label)
         st.divider()
 
-    backend_ok = health_check()
-    if backend_ok:
-        st.success("Backend connected")
-    else:
-        st.warning("Backend is waking up...")
-        with st.spinner("Waiting for backend (free tier cold start ~30s)..."):
-            backend_ok = wake_backend()
-        if backend_ok:
-            st.success("Backend connected")
-            st.rerun()
-        else:
-            st.error("Backend unreachable. Try refreshing in 30 seconds.")
+    st.success("Backend connected")
 
     if st.button("Start New Session", use_container_width=True):
         from utils.session_state import clear_session

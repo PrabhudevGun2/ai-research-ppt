@@ -92,9 +92,18 @@ def health_check(timeout: int = 10) -> bool:
         return False
 
 
-def wake_backend(max_attempts: int = 3) -> bool:
-    """Try to wake a sleeping backend (Render free tier cold start ~30s)."""
+def wake_backend(max_attempts: int = 6) -> bool:
+    """Try to wake a sleeping backend (Render free tier cold start ~60s).
+    Sends a request to kick the cold start, then polls until alive."""
+    import time
+    # First ping to trigger cold start
+    try:
+        requests.get(f"{API_BASE}/health", timeout=5)
+    except Exception:
+        pass
+    # Poll until alive
     for i in range(max_attempts):
-        if health_check(timeout=45):
+        if health_check(timeout=30):
             return True
+        time.sleep(10)
     return False
